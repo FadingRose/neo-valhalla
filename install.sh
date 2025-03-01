@@ -16,6 +16,19 @@ if ! command -v nvim &>/dev/null; then
   fi
 fi
 
+# Install Maple Font Mono
+MAPLE_FONT_PATH="/usr/local/share/fonts/Maple_Font_Mono"
+if ! [ -d "$MAPLE_FONT_PATH" ]; then
+  echo "Maple Font Mono is not installed. Installing Maple Font Mono..."
+  if command -v brew &>/dev/null; then
+    brew tap homebrew/cask-fonts
+    brew install --cask font-maple-font-mono
+  else
+    echo "Homebrew is not installed. Please install Maple Font Mono manually."
+    exit 1
+  fi
+fi
+
 # Backup existing nvim config if it exists
 if [ -d ~/.config/nvim ]; then
   echo "Backing up existing nvim config to ~/.config/nvim.bak..."

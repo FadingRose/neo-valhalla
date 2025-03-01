@@ -15,6 +15,7 @@ curl -sL https://raw.githubusercontent.com/fadingrose/Neo-Valhalla/main/install.
 First, make sure you have the following dependencies installed:
 
 - Neovim
+- Maple Font (optional)
 
 ```
 # Debian/Ubuntu
