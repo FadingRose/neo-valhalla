@@ -7,7 +7,7 @@
 To install Neo-Valhalla using automatic installation, run the following command in your terminal:
 
 ```
-curl -sL https://raw.githubusercontent.com/kobayakawaami/Neo-Valhalla/main/install.sh | bash
+curl -sL https://raw.githubusercontent.com/fadingrose/Neo-Valhalla/main/install.sh | bash
 ```
 
 ### Manually
