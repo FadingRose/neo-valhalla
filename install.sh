@@ -24,6 +24,6 @@ fi
 
 # Clone Neo-Valhalla repository
 echo "Cloning Neo-Valhalla repository..."
-git clone https://github.com/kobayakawaami/Neo-Valhalla.git ~/.config/nvim
+git clone https://github.com/fadingrose/Neo-Valhalla.git ~/.config/nvim
 
 echo "Neo-Valhalla installed successfully."
