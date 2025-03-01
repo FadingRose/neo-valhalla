@@ -22,7 +22,7 @@ if ! [ -d "$MAPLE_FONT_PATH" ]; then
   echo "Maple Font Mono is not installed. Installing Maple Font Mono..."
   if command -v brew &>/dev/null; then
     brew tap homebrew/cask-fonts
-    brew install --cask font-maple-font-mono
+    brew install --cask font-maple-mono-nf-cn
   else
     echo "Homebrew is not installed. Please install Maple Font Mono manually."
     exit 1
