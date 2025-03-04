@@ -11,5 +11,6 @@ git add .
 # Commit the changes with the current date and time as the commit message
 git commit -m "$commit_message"
 
+git pull
 # Push the changes to the remote repository
 git push
