@@ -58,9 +58,14 @@ return {
                   "// [SYNC協議] :: 神經檔案同步中...","info")
                 vim.fn.jobstart({"sh", "-c", "~/.config/nvim/auto_commit.sh"}, {
                   on_exit = function(_, code)
-                    vim.schedule(function()
-                      require("noice").notify("// [SYNC協議] :: 神經檔案同步完成", "info")
-                    end)
+                    if code ~= 0 then
+                      require("noice").notify("// [SYNC協議] :: 神經檔案同步失敗", "error")
+                    end
+                    if code == 0 then
+                      vim.schedule(function()
+                        require("noice").notify("// [SYNC協議] :: 神經檔案同步完成", "info")
+                      end)
+                    end
                   end,
                 })
             end,
