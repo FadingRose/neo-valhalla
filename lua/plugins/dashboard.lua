@@ -54,16 +54,17 @@ return {
           { action = 'lua LazyVim.pick.config_files()()',              desc = " CONFIGURATION",          icon = " ", key = "c" },
           {
             action = function()
-              require("noice").notify(
-                "// [SYNC協議] :: 神經檔案同步中...","info")
-
-              vim.cmd("! ~/.config/nvim/auto_commit.sh")
-              -- require("noice").notify({
-              --   message = "// [SYNC協議] :: 神經檔案同步完成",
-              --   level = "info",  -- Added trailing comma for better table formatting
-              -- })
+                require("noice").notify(
+                  "// [SYNC協議] :: 神經檔案同步中...","info")
+                vim.fn.jobstart({"sh", "-c", "~/.config/nvim/auto_commit.sh"}, {
+                  on_exit = function(_, code)
+                    vim.schedule(function()
+                      require("noice").notify("// [SYNC協議] :: 神經檔案同步完成", "info")
+                    end)
+                  end,
+                })
             end,
-            desc = "SYNC",
+            desc = " SYNC",
             icon = "頻",  -- Removed trailing space in code (keep icon's internal space if needed)
             key = "y"
           },
