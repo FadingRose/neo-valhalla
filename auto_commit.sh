@@ -1,5 +1,7 @@
 #!/bin/bash
 
+cd ~/.config/nvim
+
 # Get the current date and time
 commit_message=$(date +"%Y-%m-%d %H:%M:%S")
 
