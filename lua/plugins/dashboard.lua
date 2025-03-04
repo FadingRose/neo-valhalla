@@ -52,7 +52,18 @@ return {
           -- { action = 'lua LazyVim.pick("live_grep")()',                desc = " Find Text",       icon = " ", key = "g" },
           { action = 'lua require("persistence").select()',              desc = " 載入██廢墟數據（.session檔案）", icon = " ", key = "s" },
           { action = 'lua LazyVim.pick.config_files()()',              desc = " CONFIGURATION",          icon = " ", key = "c" },
-          {action = '! ~/.config/nvim/auto_commit.sh', desc = "SYNC", icon = "頻 ", key = "y"},
+          {
+  action = function()
+    vim.cmd("! ~/.config/nvim/auto_commit.sh")
+    require("noice").notify({
+      message = "// [SYNC協議] :: 神經檔案同步完成",
+      level = "info",  -- Added trailing comma for better table formatting
+    })
+  end,
+  desc = "SYNC",
+  icon = "頻",  -- Removed trailing space in code (keep icon's internal space if needed)
+  key = "y"
+          },
           {
             action = function()
               require("telescope.builtin").colorscheme({
