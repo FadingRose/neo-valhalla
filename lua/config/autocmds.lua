@@ -35,6 +35,7 @@ if vim.g.neovide then
 end
 
 vim.o.autochdir = true
+vim.cmd.chdir("~")
 
 vim.o.background = "dark"
 -- vim.cmd.colorscheme("oxocarbon")

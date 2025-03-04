@@ -50,7 +50,7 @@ return {
           -- { action = "ene | startinsert",                              desc = " New File",        icon = " ", key = "n" },
           { action = 'lua LazyVim.pick("oldfiles")()',                 desc = " 調閱歷史污染數據██（30日內）",    icon = " ", key = "r" },
           -- { action = 'lua LazyVim.pick("live_grep")()',                desc = " Find Text",       icon = " ", key = "g" },
-          { action = 'lua require("persistence").load()',              desc = " 載入██廢墟數據（.session檔案）", icon = " ", key = "s" },
+          { action = 'lua require("persistence").select()',              desc = " 載入██廢墟數據（.session檔案）", icon = " ", key = "s" },
           { action = 'lua LazyVim.pick.config_files()()',              desc = " CONFIGURATION",          icon = " ", key = "c" },
           {
             action = function()
@@ -89,6 +89,15 @@ return {
     }
 
     for _, button in ipairs(opts.config.center) do
+      -- if button.desc then
+      --   -- 使用 20% 的擾碼強度，保留主要可讀性
+      --   button.desc = neural_scramble(button.desc, 0.2)
+      --
+      --   -- 故障概率追加系統錯誤碼(10% 機率)
+      --   -- if math.random() < 0.1 then
+      --   --   button.desc = button.desc .. " ERR:" .. tostring(math.random(0x9000, 0x9FFF))
+      --   -- end
+      -- end
       button.key_format = "      [%s]"
     end
 
