@@ -52,6 +52,7 @@ return {
           -- { action = 'lua LazyVim.pick("live_grep")()',                desc = " Find Text",       icon = " ", key = "g" },
           { action = 'lua require("persistence").select()',              desc = " 載入██廢墟數據（.session檔案）", icon = " ", key = "s" },
           { action = 'lua LazyVim.pick.config_files()()',              desc = " CONFIGURATION",          icon = " ", key = "c" },
+          -- {action = ''},
           {
             action = function()
               require("telescope.builtin").colorscheme({
