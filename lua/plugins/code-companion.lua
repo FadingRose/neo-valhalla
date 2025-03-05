@@ -26,8 +26,7 @@ return {
 
         -- Options to customize the UI of the chat buffer
         window = {
-          -- layout = "float", -- float|vertical|horizontal|buffer
-          layout = "vertical", -- float|vertical|horizontal|buffer
+          layout = "float", -- float|vertical|horizontal|buffer
           position = nil, -- left|right|top|bottom (nil will default depending on vim.opt.plitright|vim.opt.splitbelow)
           border = "single",
           height = 0.8,
@@ -72,8 +71,8 @@ return {
           user_prompt = false,
           stop_context_insertion = true,
           adapter = {
-            name = "siliconflow_r1aliyun_deepseek",
-            model = "Pro/deepseek-ai/DeepSeek-R1",
+            name = "aliyun_deepseek",
+            model = "deepseek-r1",
           },
         },
         prompts = {
@@ -109,165 +108,6 @@ return {
             end,
             opts = {
               contains_code = true,
-            },
-          },
-        },
-      },
-
-      ["DeepSeek Explain Notes"] = {
-        strategy = "chat",
-        description = "中文解释文档内容",
-        opts = {
-          index = 5,
-          is_default = true,
-          is_slash_cmd = false,
-          modes = { "v" },
-          short_name = "explain in chinese",
-          auto_submit = true,
-          user_prompt = false,
-          stop_context_insertion = true,
-          adapter = {
-            name = "siliconflow_r1",
-            model = "Pro/deepseek-ai/DeepSeek-R1",
-          },
-        },
-        prompts = {
-          {
-            role = "system",
-            content = [[用户将会提交一段 CFA 的文档，为用户解释和帮助学习文档内容.]],
-            opts = {
-              visible = false,
-            },
-          },
-          {
-            role = "user",
-            content = function(context)
-              local input = require("codecompanion.helpers.actions").get_code(context.start_line, context.end_line)
-
-              return string.format(
-                [[请解释 buffer %d 中的这段内容:
-
-  ```%s
-  %s
-  ```
-  ]],
-                context.bufnr,
-                context.filetype,
-                input
-              )
-            end,
-            opts = {
-              contains_code = true,
-            },
-          },
-        },
-      },
-
-      ["Ollama Note Taking"] = {
-        strategy = "chat",
-        description = "Note Taking",
-        opts = {
-          index = 5,
-          is_default = true,
-          is_slash_cmd = false,
-          modes = { "v" },
-          short_name = "note taking",
-          auto_submit = true,
-          user_prompt = false,
-          stop_context_insertion = true,
-          adapter = {
-            name = "ollama",
-            model = "qwen2.5:7b-instruct-q8_0",
-          },
-        },
-        prompts = {
-          {
-            role = "system",
-            content = [[当被要求翻译记录笔记时，请遵循以下步骤：
-
-总结阅读或主题的重要部分，创建 markdown 笔记。
-
-1. 包含所有必要信息，例如词汇项和关键概念，并使用星号加粗它们。
-2. 删除任何无关语言，只关注段落或主题的关键方面。
-3. 严格基于提供的信息，不要添加任何外部信息。
-4. 在笔记结尾写上 "End_of_Notes" 以示完成。]],
-            opts = {
-              visible = false,
-            },
-          },
-          {
-            role = "user",
-            content = function(context)
-              local input = require("codecompanion.helpers.actions").get_code(context.start_line, context.end_line)
-
-              return string.format(
-                [[请基于 buffer %d 中的这段内容制作笔记:
-
-  ```%s
-  %s
-  ```
-  ]],
-                context.bufnr,
-                context.filetype,
-                input
-              )
-            end,
-            opts = {
-              contains_code = false,
-            },
-          },
-        },
-      },
-
-      ["Ollama Translate to Chinese"] = {
-        strategy = "chat",
-        description = "翻译为中文",
-        opts = {
-          index = 5,
-          is_default = true,
-          is_slash_cmd = false,
-          modes = { "v" },
-          short_name = "trabslate to chinese",
-          auto_submit = true,
-          user_prompt = false,
-          stop_context_insertion = true,
-          adapter = {
-            name = "ollama",
-            -- model = "mistral-nemo:12b",
-            model = "qwen2.5:7b-instruct-q8_0",
-            -- model = "lauchacarro/qwen2.5-translator:latest",
-          },
-        },
-        prompts = {
-          {
-            role = "system",
-            content = [[当被要求翻译为中文时，请遵循以下步骤：
-
-  1. 识别语言
-  2. 对于每一行，翻译成中文，并且附加原文。]],
-            opts = {
-              visible = false,
-            },
-          },
-          {
-            role = "user",
-            content = function(context)
-              local input = require("codecompanion.helpers.actions").get_code(context.start_line, context.end_line)
-
-              return string.format(
-                [[请把 buffer %d 中的这段内容翻译成中文:
-
-  ```%s
-  %s
-  ```
-  ]],
-                context.bufnr,
-                context.filetype,
-                input
-              )
-            end,
-            opts = {
-              contains_code = false,
             },
           },
         },
