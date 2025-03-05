@@ -17,7 +17,7 @@ return {
             function()
               return "// [理性協議棧] :: 正在墮入深海..."
             end,
-            color = { fg = "#ff79c6", gui = "bold" }, -- Pink color for the glitchy text
+            -- color = { fg = "#ff79c6", gui = "bold" }, -- Pink color for the glitchy text
           },
         },
         lualine_x = {},

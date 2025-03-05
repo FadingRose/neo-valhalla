@@ -44,3 +44,15 @@ vim.cmd([[cab cc CodeCompanion]])
 
 -- Mapping Tab to jump to the matching bracket
 vim.api.nvim_set_keymap("n", "<Tab>", "%", { noremap = true, silent = true })
+
+-- Increase font size
+vim.keymap.set("n", "<C-=>", function()
+  local size = vim.o.guifont:match("%d+")
+  vim.o.guifont = vim.o.guifont:gsub("%d+", size + 1)
+end, { desc = "Increase font size" })
+
+-- Decrease font size
+vim.keymap.set("n", "<C-->", function()
+  local size = vim.o.guifont:match("%d+")
+  vim.o.guifont = vim.o.guifont:gsub("%d+", size - 1)
+end, { desc = "Decrease font size" })
