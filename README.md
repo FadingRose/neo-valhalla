@@ -41,7 +41,3 @@ If you already have a `~/.config/nvim` folder, you should make a backup of it be
 mv ~/.config/nvim ~/.config/nvim.bak
 
 ```
-
-```
-
-```
