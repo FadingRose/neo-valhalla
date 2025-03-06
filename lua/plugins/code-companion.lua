@@ -71,8 +71,8 @@ return {
           user_prompt = false,
           stop_context_insertion = true,
           adapter = {
-            name = "aliyun_deepseek",
-            model = "deepseek-r1",
+            name = "siliconflow_r1",
+            model = "Pro/deepseek-ai/DeepSeek-R1",
           },
         },
         prompts = {
@@ -120,16 +120,16 @@ return {
       agent = { adapter = "siliconflow" },
     },
     adapters = {
-      copilot_claude = function()
-        return require("codecompanion.adapters").extend("copilot", {
-          name = "copilot_claude",
-          schema = {
-            model = {
-              default = "claude-3.5-sonnet",
-            },
-          },
-        })
-      end,
+      -- copilot_claude = function()
+      --   return require("codecompanion.adapters").extend("copilot", {
+      --     name = "copilot_claude",
+      --     schema = {
+      --       model = {
+      --         default = "claude-3.5-sonnet",
+      --       },
+      --     },
+      --   })
+      -- end,
       qwen_coder = function()
         return require("codecompanion.adapters").extend("openai_compatible", {
           opts = {
@@ -170,6 +170,9 @@ return {
                 ["Pro/deepseek-ai/DeepSeek-R1"] = { opts = { can_reason = true } },
                 "Pro/deepseek-ai/DeepSeek-V3",
               },
+            },
+            temperature = {
+              default = 0.3,
             },
           },
         })
