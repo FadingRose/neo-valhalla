@@ -45,4 +45,4 @@ vim.cmd.chdir("~")
 
 vim.o.background = "dark"
 -- vim.cmd.colorscheme("oxocarbon")
-vim.cmd.colorscheme("duskfox")
+vim.cmd.colorscheme("carbonfox")
