@@ -1,43 +1,26 @@
 return {
-  "2kabhishek/markit.nvim",
-  -- config = load_config('tools.marks'),
-  event = { "BufReadPre", "BufNewFile" },
+  "tomasky/bookmarks.nvim",
   config = function()
-    require("markit").setup({
-      -- whether to map keybinds or not. default true
-      default_mappings = true,
-      -- which builtin marks to show. default {}
-      builtin_marks = { ".", "<", ">", "^" },
-      -- whether movements cycle back to the beginning/end of buffer. default true
-      cyclic = true,
-      -- whether the shada file is updated after modifying uppercase marks. default false
-      force_write_shada = false,
-      -- how often (in ms) to redraw signs/recompute mark positions.
-      -- higher value means better performance but may cause visual lag,
-      -- while lower value may cause performance penalties. default 150.
-      refresh_interval = 150,
-      -- sign priorities for each type of mark - builtin marks, uppercase marks, lowercase
-      -- marks, and bookmarks.
-      -- can be either a table with all/none of the keys, or a single number, in which case
-      -- the priority applies to all marks.
-      -- default 10.
-      sign_priority = { lower = 10, upper = 15, builtin = 8, bookmark = 20 },
-      -- disables mark tracking for specific filetypes. default {}
-      excluded_filetypes = {},
-      -- disables mark tracking for specific buftypes. default {}
-      excluded_buftypes = {},
-      -- marks.nvim allows you to configure up to 10 bookmark groups, each with its own
-      -- sign/virttext. Bookmarks can be used to group together positions and quickly move
-      -- across multiple buffers. default sign is '!@#$%^&*()' (from 0 to 9), and
-      -- default virt_text is "".
-      bookmark_0 = {
-        sign = "⚑",
-        virt_text = "hello world",
-        -- explicitly prompt for a virtual line annotation when setting a bookmark from this group.
-        -- defaults to false.
-        annotate = false,
+    require("bookmarks").setup({
+      -- sign_priority = 8,  --set bookmark sign priority to cover other sign
+      save_file = vim.fn.expand("$HOME/.bookmarks"), -- bookmarks save file path
+      keywords = {
+        ["@t"] = "☑️ ", -- mark annotation startswith @t ,signs this icon as `Todo`
+        ["@w"] = "⚠️ ", -- mark annotation startswith @w ,signs this icon as `Warn`
+        ["@f"] = "⛏ ", -- mark annotation startswith @f ,signs this icon as `Fix`
+        ["@n"] = " ", -- mark annotation startswith @n ,signs this icon as `Note`
       },
-      mappings = {},
+      on_attach = function(bufnr)
+        local bm = require("bookmarks")
+        local map = vim.keymap.set
+        map("n", "mm", bm.bookmark_toggle) -- add or remove bookmark at current line
+        map("n", "mi", bm.bookmark_ann) -- add or edit mark annotation at current line
+        map("n", "mc", bm.bookmark_clean) -- clean all marks in local buffer
+        map("n", "mn", bm.bookmark_next) -- jump to next mark in local buffer
+        map("n", "mp", bm.bookmark_prev) -- jump to previous mark in local buffer
+        map("n", "ml", bm.bookmark_list) -- show marked file list in quickfix window
+        map("n", "mx", bm.bookmark_clear_all) -- removes all bookmarks
+      end,
     })
   end,
 }
