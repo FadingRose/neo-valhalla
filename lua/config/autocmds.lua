@@ -8,9 +8,9 @@
 -- e.g. vim.api.nvim_del_augroup_by_name("lazyvim_wrap_spell")
 vim.opt.linespace = 4
 
--- vim.o.guifont = "Intel One Mono:h14"
+vim.o.guifont = "Intel One Mono:h14"
 -- vim.o.guifont = "Intel One Mono,LXGW WenKai Mono:h9:h14"
-vim.o.guifont = "Maple Mono NF CN:h13"
+-- vim.o.guifont = "Maple Mono NF CN:h13"
 -- vim.o.gui_font_size = 14
 -- Neovide-specific settings
 if vim.g.neovide then
