@@ -1,6 +1,8 @@
 local lspconfig = require("lspconfig")
 local configs = require("lspconfig.configs")
 
+-- manully introduce solidity-language-server
+-- npm install @nomicfoundation/solidity-language-server -g
 configs.solidity = {
   default_config = {
     cmd = { "nomicfoundation-solidity-language-server", "--stdio" },
