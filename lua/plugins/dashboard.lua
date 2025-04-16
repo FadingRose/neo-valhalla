@@ -48,6 +48,13 @@ return {
         center = {
           -- { action = 'lua LazyVim.pick()()',                           desc = " Find File",       icon = " ", key = "f" },
           -- { action = "ene | startinsert",                              desc = " New File",        icon = " ", key = "n" },
+           -- {
+           -- action = function ()
+           -- end,
+           -- desc = " 深潛進度黑匣 (神經探針協議)",
+           -- icon = " ",  -- 使用 DNA 螺旋圖示
+           -- key = "p"
+           --  },
           { action = 'lua LazyVim.pick("oldfiles")()',                 desc = " 調閱歷史污染數據██（30日內）",    icon = " ", key = "r" },
           -- { action = 'lua LazyVim.pick("live_grep")()',                desc = " Find Text",       icon = " ", key = "g" },
           { action = 'lua require("persistence").select()',              desc = " 載入██廢墟數據（.session檔案）", icon = " ", key = "s" },

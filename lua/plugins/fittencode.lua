@@ -146,7 +146,7 @@ return {
     -- Available options:
     -- * 'inline' (VSCode style inline completion)
     -- * 'source' (integrates into other completion plugins)
-    completion_mode = "inline",
+    completion_mode = "source",
     ---@class LogOptions
     log = {
       -- Log level.

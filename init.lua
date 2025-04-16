@@ -2,3 +2,5 @@
 require("config.lazy")
 -- require("dap-go").setup()
 vim.opt.signcolumn = "yes"
+
+require("config.lsp")
