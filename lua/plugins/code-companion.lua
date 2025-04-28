@@ -138,7 +138,8 @@ return {
           env = {
             url = "https://api.siliconflow.cn",
             api_key = function()
-              local key = os.getenv("SILICONFLOW_API_KEY")
+              local key = vim.fn.getenv("SILICONFLOW_API_KEY")
+              -- local key = os.getenv("SILICONFLOW_API_KEY")
               return key
             end,
             chat_url = "/v1/chat/completions",
@@ -159,7 +160,8 @@ return {
           url = "https://api.siliconflow.cn/v1/chat/completions",
           env = {
             api_key = function()
-              return os.getenv("SILICONFLOW_API_KEY")
+              local key = vim.fn.getenv("SILICONFLOW_API_KEY")
+              return key
             end,
             -- chat_url = "/v1/chat/completions",
           },
