@@ -44,5 +44,6 @@ vim.o.autochdir = true
 vim.cmd.chdir("~")
 
 vim.o.background = "dark"
--- vim.cmd.colorscheme("oxocarbon")
-vim.cmd.colorscheme("carbonfox")
+
+local theme = require("last-color").recall() or "carbonfox"
+vim.cmd.colorscheme(theme)
