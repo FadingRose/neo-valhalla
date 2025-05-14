@@ -25,6 +25,4 @@ vim.cmd([[
 
   nnoremap <silent> w :call CustomW()<CR>
   nnoremap <silent> b :call CustomB()<CR>
-  vnoremap <silent> w :call CustomW()<CR>
-  vnoremap <silent> b :call CustomB()<CR>
 ]])

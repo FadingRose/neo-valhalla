@@ -115,9 +115,9 @@ return {
     },
 
     strategies = {
-      chat = { adapter = "qwen_coder" },
-      inline = { adapter = "siliconflow" },
-      agent = { adapter = "siliconflow" },
+      chat = { adapter = "siliconflow_v3" },
+      inline = { adapter = "siliconflow_v3" },
+      agent = { adapter = "siliconflow_v3" },
     },
     adapters = {
       -- copilot_claude = function()
@@ -147,6 +147,26 @@ return {
           schema = {
             model = {
               default = "Qwen/Qwen2.5-Coder-32B-Instruct",
+            },
+          },
+        })
+      end,
+      siliconflow_v3 = function()
+        return require("codecompanion.adapters").extend("openai_compatible", {
+          opts = {
+            languages = "Chinese",
+          },
+          env = {
+            url = "https://api.siliconflow.cn",
+            api_key = function()
+              local key = vim.fn.getenv("SILICONFLOW_API_KEY")
+              return key
+            end,
+            chat_url = "/v1/chat/completions",
+          },
+          schema = {
+            model = {
+              default = "Pro/deepseek-ai/DeepSeek-V3",
             },
           },
         })

@@ -20,7 +20,27 @@ return {
             -- color = { fg = "#ff79c6", gui = "bold" }, -- Pink color for the glitchy text
           },
         },
-        lualine_x = {},
+        lualine_x = {
+          {
+            require("noice").api.status.message.get_hl,
+            cond = require("noice").api.status.message.has,
+          },
+          {
+            require("noice").api.status.command.get,
+            cond = require("noice").api.status.command.has,
+            color = { fg = "#ff9e64" },
+          },
+          {
+            require("noice").api.status.mode.get,
+            cond = require("noice").api.status.mode.has,
+            color = { fg = "#ff9e64" },
+          },
+          {
+            require("noice").api.status.search.get,
+            cond = require("noice").api.status.search.has,
+            color = { fg = "#ff9e64" },
+          },
+        },
         lualine_y = { "filetype", "progress" },
         lualine_z = {
           { "location", separator = { right = "::" }, left_padding = 2 },

@@ -14,7 +14,7 @@ vim.opt.linespace = 4
 -- Code
 -- vim.o.guifont = "Intel One Mono,LXGW WenKai Mono:h9:h14"
 
-vim.o.guifont = "Maple Mono NF CN:h13"
+vim.o.guifont = "Intel One Mono,Maple Mono NF CN:h9:h13"
 
 -- vim.o.gui_font_size = 14
 -- Neovide-specific settings
@@ -45,5 +45,6 @@ vim.cmd.chdir("~")
 
 vim.o.background = "dark"
 
-local theme = require("last-color").recall() or "carbonfox"
-vim.cmd.colorscheme(theme)
+-- local theme = require("last-color").recall() or "carbonfox"
+-- vim.cmd.colorscheme(theme)
+require("config.colorscheme")

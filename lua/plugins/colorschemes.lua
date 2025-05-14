@@ -12,4 +12,5 @@ return {
   "vague2k/vague.nvim",
   "rockerBOO/boo-colorscheme-nvim",
   { "ellisonleao/gruvbox.nvim", priority = 1000, config = true, opts = ... },
+  "frenzyexists/aquarium-vim",
 }
