@@ -56,7 +56,6 @@ return {
            -- key = "p"
            --  },
           { action = 'lua LazyVim.pick("oldfiles")()',                 desc = " 調閱歷史污染數據██（30日內）",    icon = " ", key = "r" },
-          -- { action = 'lua LazyVim.pick("live_grep")()',                desc = " Find Text",       icon = " ", key = "g" },
           { action = 'lua require("persistence").select()',              desc = " 載入██廢墟數據（.session檔案）", icon = " ", key = "s" },
           { action = 'lua LazyVim.pick.config_files()()',              desc = " CONFIGURATION",          icon = " ", key = "c" },
           {
@@ -79,6 +78,19 @@ return {
             desc = " SYNC",
             icon = "頻",  -- Removed trailing space in code (keep icon's internal space if needed)
             key = "y"
+          },
+          {
+            action = function()
+              vim.fn.chdir("~/ChantMaid-Obsidian-Workspace/")
+              require("telescope.builtin").find_files({
+                no_ignore = false,  -- 不忽略 .gitignore 和 .ignore 文件
+                hidden = true,      -- 显示隐藏文件
+                previewer = false,  -- 禁用预览窗口
+              })
+            end,
+            desc = " OPEN OBSIDIAN",
+            icon = "󰈙 ",  -- 使用 Obsidian 圖示
+            key = "o"
           },
           {
             action = function()

@@ -112,6 +112,54 @@ return {
           },
         },
       },
+      ["Trans En -> Chinese"] = {
+        strategy = "chat",
+        description = "翻译为中文",
+        opts = {
+          index = 5,
+          is_default = true,
+          is_slash_cmd = false,
+          modes = { "v" },
+          short_name = "translate to chinese",
+          auto_submit = true,
+          user_prompt = false,
+          stop_context_insertion = true,
+          adapter = {
+            name = "siliconflow_v3",
+            model = "Pro/deepseek-ai/DeepSeek-V3",
+          },
+        },
+        prompts = {
+          {
+            role = "system",
+            content = [[收到输入后，将内容翻译为中文。]],
+            opts = {
+              visible = false,
+            },
+          },
+          {
+            role = "user",
+            content = function(context)
+              local input = require("codecompanion.helpers.actions").get_code(context.start_line, context.end_line)
+
+              return string.format(
+                [[请翻译 buffer %d 中的这段内容:
+
+  ```%s
+  %s
+  ```
+  ]],
+                context.bufnr,
+                context.filetype,
+                input
+              )
+            end,
+            opts = {
+              contains_code = true,
+            },
+          },
+        },
+      },
     },
 
     strategies = {
