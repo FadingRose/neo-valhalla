@@ -26,3 +26,13 @@ vim.cmd([[
   nnoremap <silent> w :call CustomW()<CR>
   nnoremap <silent> b :call CustomB()<CR>
 ]])
+
+--- set filetype for .tx files
+
+vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
+  pattern = "*.tx",
+  callback = function()
+    vim.opt_local.filetype = "tx"
+  end,
+  desc = "Set filetype for .tx files",
+})
