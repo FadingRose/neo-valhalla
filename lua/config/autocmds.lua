@@ -6,7 +6,7 @@
 --
 -- Or remove existing autocmds by their group name (which is prefixed with `lazyvim_` for the defaults)
 -- e.g. vim.api.nvim_del_augroup_by_name("lazyvim_wrap_spell")
-vim.opt.linespace = 4
+vim.opt.linespace = 1
 
 -- Reading
 -- vim.o.guifont = "Times Roman:h14"
@@ -45,6 +45,7 @@ vim.cmd.chdir("~")
 
 vim.o.background = "dark"
 
--- local theme = require("last-color").recall() or "carbonfox"
--- vim.cmd.colorscheme(theme)
+local theme = require("last-color").recall() or "carbonfox"
+vim.cmd.colorscheme(theme)
+
 require("config.colorscheme")
