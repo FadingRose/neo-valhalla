@@ -160,6 +160,56 @@ return {
           },
         },
       },
+      ["Trans En -> Improve"] = {
+        strategy = "chat",
+        description = "translate to English and improve stattements",
+        opts = {
+          index = 5,
+          is_default = true,
+          is_slash_cmd = false,
+          modes = { "v" },
+          short_name = "translate to english and improve",
+          auto_submit = true,
+          user_prompt = false,
+          stop_context_insertion = true,
+          adapter = {
+            name = "siliconflow_v3",
+            model = "Pro/deepseek-ai/DeepSeek-V3",
+          },
+        },
+        prompts = {
+          {
+            role = "system",
+            content = [[
+              Translate the content to English and improve the statements.
+            ]],
+            opts = {
+              visible = false,
+            },
+          },
+          {
+            role = "user",
+            content = function(context)
+              local input = require("codecompanion.helpers.actions").get_code(context.start_line, context.end_line)
+
+              return string.format(
+                [[ Please handle content in buffer %d :
+
+  ```%s
+  %s
+  ```
+  ]],
+                context.bufnr,
+                context.filetype,
+                input
+              )
+            end,
+            opts = {
+              contains_code = true,
+            },
+          },
+        },
+      },
     },
 
     strategies = {
