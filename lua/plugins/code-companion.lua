@@ -210,12 +210,59 @@ return {
           },
         },
       },
+
+      ["Convert to one line "] = {
+        strategy = "chat",
+        description = "Convert to one line and add math latex",
+        opts = {
+          index = 5,
+          is_default = true,
+          is_slash_cmd = false,
+          modes = { "v" },
+          short_name = "Convert to one line",
+          auto_submit = true,
+          user_prompt = false,
+          stop_context_insertion = true,
+        },
+        prompts = {
+          {
+            role = "system",
+            content = [[
+              转化为一行，去掉行之间的连字符，并添加必要的数学公式的 LaTeX 语法，不需要改变原文表达。
+            ]],
+            opts = {
+              visible = false,
+            },
+          },
+          {
+            role = "user",
+            content = function(context)
+              local input = require("codecompanion.helpers.actions").get_code(context.start_line, context.end_line)
+
+              return string.format(
+                [[ Please handle content in buffer %d :
+
+  ```%s
+  %s
+  ```
+  ]],
+                context.bufnr,
+                context.filetype,
+                input
+              )
+            end,
+            opts = {
+              contains_code = true,
+            },
+          },
+        },
+      },
     },
 
     strategies = {
-      chat = { adapter = "siliconflow_v3" },
-      inline = { adapter = "siliconflow_v3" },
-      agent = { adapter = "siliconflow_v3" },
+      chat = { adapter = "flash_gemini" },
+      inline = { adapter = "flash_gemini" },
+      agent = { adapter = "flash_gemini" },
     },
     adapters = {
       -- copilot_claude = function()
@@ -228,6 +275,24 @@ return {
       --     },
       --   })
       -- end,
+      flash_gemini = function()
+        return require("codecompanion.adapters").extend("openai_compatible", {
+          env = {
+            url = "https://openrouter.ai/api",
+            api_key = function()
+              local key = vim.fn.getenv("OPENROUTER_API_KEY")
+              return key
+            end,
+            chat_url = "/v1/chat/completions",
+          },
+          schema = {
+            model = {
+              default = "google/gemini-2.5-flash-preview-05-20",
+            },
+          },
+        })
+      end,
+
       qwen_coder = function()
         return require("codecompanion.adapters").extend("openai_compatible", {
           opts = {
