@@ -33,6 +33,7 @@ vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
   pattern = "*.tx",
   callback = function()
     vim.opt_local.filetype = "tx"
+    vim.bo.commentstring = "// %s"
   end,
   desc = "Set filetype for .tx files",
 })
