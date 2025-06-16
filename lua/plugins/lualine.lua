@@ -12,12 +12,11 @@ return {
         lualine_a = { { "mode", separator = { left = "::" }, right_padding = 2 } },
         lualine_b = { "filename", "branch" },
         lualine_c = {
-          "%=", --[[ add your center compoentnts here in place of this comment ]]
+          "%=", --[[ add your center component here in place of this comment ]]
           {
             function()
               return "// [理性協議棧] :: 正在墮入深海..."
             end,
-            -- color = { fg = "#ff79c6", gui = "bold" }, -- Pink color for the glitchy text
           },
         },
         lualine_x = {
