@@ -2,6 +2,28 @@
 -- Default keymaps that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/keymaps.lua
 -- Add any additional keymaps here
 
+-- =======================================================================
+-- 警告：这是一个非标准的键位绑定，会彻底改变 Vim 的核心导航和编辑模式。
+-- 使用 j, k, l, i 模拟方向键, 使用 h 进入插入模式
+-- =======================================================================
+
+-- -- 在普通模式和可视模式下, 'i' 键现在的功能是向左移动光标。
+-- vim.keymap.set({ "n", "v" }, "i", "<Left>", { noremap = true, desc = "Move Left" })
+--
+-- -- 在普通模式和可视模式下, 'j' 键的功能是向下移动光标。
+-- vim.keymap.set({ "n", "v" }, "j", "<Down>", { noremap = true, desc = "Move Down" })
+--
+-- -- 在普通模式和可视模式下, 'k' 键的功能是向上移动光标。
+-- vim.keymap.set({ "n", "v" }, "k", "<Up>", { noremap = true, desc = "Move Up" })
+--
+-- -- 在普通模式和可视模式下, 'l' 键的功能是向右移动光标。
+-- -- 注意：'l' 在普通模式下已具备此功能，这里为了统一性而显式设置。
+-- vim.keymap.set({ "n", "v" }, "l", "<Right>", { noremap = true, desc = "Move Right" })
+--
+-- -- 'h' 键现在取代了 'i' 的原始功能：进入插入模式。
+-- -- 原本的 'h' (向左移动) 的功能已被上面的 'i' 键映射所取代。
+-- vim.keymap.set("n", "h", "i", { noremap = true, desc = "Enter Insert Mode" })
+
 -- Resize window using <Alt+Arrow> keys
 vim.keymap.set("n", "<M-Left>", "<cmd>vertical resize -2<cr>", { desc = "Decrease Window Width" })
 vim.keymap.set("n", "<M-Down>", "<cmd>resize +2<cr>", { desc = "Increase Window Height" })
