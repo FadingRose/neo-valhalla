@@ -25,6 +25,7 @@ M.setup = function()
   local c = {
     -- 基础颜色
     bg = "#211B2B", -- 主背景 (与原版一致)
+    -- bg_alt = "#211B2B", -- 主背景 (与原版一致)
     bg_alt = "#2C243B", -- 次背景 (与原版一致)
     bg_darkest = "#1A1423", -- 最暗背景 (与原版一致)
     selection = "#483D59", -- 选区颜色 (与原版一致)
@@ -171,6 +172,168 @@ M.setup = function()
   hi("LspDiagnosticsUnderlineWarning", c.string_yellow, "NONE", "underline")
   hi("LspDiagnosticsUnderlineInformation", c.type_color, "NONE", "underline")
   hi("LspDiagnosticsUnderlineHint", c.grey_mid, "NONE", "underline")
+
+  -- 链接现有高亮组
+  hi("NonText", c.comment, "NONE")
+  hi("EndOfBuffer", c.comment, "NONE")
+  hi("Folded", c.comment, c.bg_alt, "italic")
+  hi("Search", c.bg, c.string_yellow)
+  hi("IncSearch", c.bg, c.number_orange)
+  hi("MatchParen", c.bg_alt, c.selection, "bold")
+  hi("Cursor", "NONE", c.fg)
+  hi("lCursor", "NONE", c.fg)
+  hi("TermCursor", "NONE", c.fg, "reverse")
+  hi("CursorIM", "NONE", c.fg)
+  hi("Whitespace", c.comment, "NONE")
+
+  -- 消息和提示
+  hi("ErrorMsg", c.error_red, "NONE", "bold")
+  hi("WarningMsg", c.string_yellow, "NONE", "bold")
+  hi("MoreMsg", c.special_magenta, "NONE")
+  hi("Question", c.special_magenta, "NONE")
+  hi("MsgArea", "NONE", "NONE")
+  hi("MsgSeparator", c.comment, "NONE")
+
+  -- Tree-sitter 高亮 (通用映射)
+  hi("@variable", c.fg_brightest, "NONE")
+  hi("@function", c.fg_brightest, "NONE", "bold")
+  hi("@parameter", c.fg_brightest, "NONE", "italic")
+  hi("@keyword", c.keyword_color, "NONE")
+  hi("@string", c.string_yellow, "NONE")
+  hi("@number", c.number_orange, "NONE")
+  hi("@boolean", c.type_color, "NONE", "bold")
+  hi("@type", c.type_color, "NONE", "italic")
+  hi("@operator", c.error_red, "NONE")
+  hi("@punctuation.delimiter", c.fg, "NONE")
+  hi("@punctuation.bracket", c.fg, "NONE")
+  hi("@comment", c.comment, "NONE", "italic")
+  hi("@constant", c.type_color, "NONE")
+  hi("@property", c.fg_brightest, "NONE")
+  hi("@markup.heading", c.special_magenta, "NONE", "bold")
+  hi("@markup.link", c.fg, "NONE", "underline")
+  hi("@markup.raw", c.string_yellow, c.bg_alt)
+
+  -- 插件特定高亮 (部分示例，根据实际需求添加)
+  hi("WhichKeyFloat", c.fg, c.bg_alt)
+  hi("WhichKeyBorder", c.ui_purple, c.bg_alt)
+  hi("WhichKeyGroup", c.special_magenta, "NONE", "bold")
+  hi("WhichKeyMatch", c.string_yellow, "NONE")
+  hi("WhichKeyDesc", c.fg, "NONE")
+
+  hi("TelescopePromptNormal", c.fg, c.bg)
+  hi("TelescopePromptBorder", c.ui_purple, c.bg)
+  hi("TelescopeResultsNormal", c.fg, c.bg_alt)
+  hi("TelescopeResultsBorder", c.ui_purple, c.bg_alt)
+  hi("TelescopePreviewNormal", c.fg, c.bg_alt)
+  hi("TelescopePreviewBorder", c.ui_purple, c.bg_alt)
+  hi("TelescopeMatching", c.string_yellow, "NONE", "bold")
+  hi("TelescopeSelection", "NONE", c.selection)
+  hi("TelescopeTitle", c.special_magenta, c.bg, "bold")
+
+  hi("GitSignsAdd", c.string_yellow, "NONE")
+  hi("GitSignsChange", c.number_orange, "NONE")
+  hi("GitSignsDelete", c.error_red, "NONE")
+
+  hi("NoiceCmdline", c.fg, c.bg)
+  hi("NoiceCmdlinePopup", c.fg, c.bg_alt)
+  hi("NoiceCmdlinePopupBorder", c.ui_purple, c.bg_alt)
+  hi("NoicePopupmenu", c.fg, c.bg_alt)
+  hi("NoicePopupmenuSelected", c.grey_light, c.selection)
+  hi("NoiceConfirm", c.fg, c.bg_alt)
+  hi("NoiceConfirmBorder", c.ui_purple, c.bg_alt)
+  hi("NoiceMini", c.comment, "NONE")
+  hi("NoiceFormatProgressDone", c.fg, c.number_orange)
+  hi("NoiceFormatProgressTodo", c.comment, c.bg_darkest)
+
+  hi("DapUIFloatNormal", c.fg, c.bg_alt)
+  hi("DapUIFloatBorder", c.ui_purple, c.bg_alt)
+  hi("DapUIScope", c.keyword_color, "NONE", "bold")
+  hi("DapUIValue", c.fg, "NONE")
+  hi("DapUIBreakpointsCurrentLine", c.current_line_nr, "NONE", "bold")
+  hi("NvimDapVirtualText", c.comment, "NONE")
+
+  hi("BufferLineFill", c.bg_darkest, c.bg_darkest)
+  hi("BufferLineBuffer", c.comment, c.bg_alt)
+  hi("BufferLineBufferSelected", c.grey_light, c.selection, "bold")
+  hi("BufferLineTabSelected", c.grey_light, c.selection, "bold")
+  hi("BufferLineSeparator", c.bg_darkest, c.bg_darkest)
+  hi("BufferLineSeparatorSelected", c.ui_purple, c.selection)
+  hi("BufferLineCloseButton", c.comment, c.bg_alt)
+  hi("BufferLineCloseButtonSelected", c.grey_light, c.selection)
+  hi("BufferLineModified", c.string_yellow, c.bg_alt)
+  hi("BufferLineModifiedSelected", c.string_yellow, c.selection)
+  hi("BufferLineErrorDiagnostic", c.error_red, c.bg_alt)
+  hi("BufferLineWarningDiagnostic", c.string_yellow, c.bg_alt)
+  hi("BufferLineInfoDiagnostic", c.type_color, c.bg_alt)
+  hi("BufferLineHintDiagnostic", c.grey_mid, c.bg_alt)
+
+  -- 其他常见高亮组
+  hi("CursorColumn", "NONE", c.cursorline)
+  hi("Conceal", c.comment, "NONE")
+  hi("FoldColumn", c.comment, c.bg)
+  hi("QuickFixLine", c.special_magenta, c.bg_alt, "bold")
+  hi("SpellBad", "NONE", "NONE", "undercurl", c.error_red)
+  hi("SpellCap", "NONE", "NONE", "undercurl", c.string_yellow)
+  hi("SpellRare", "NONE", "NONE", "undercurl", c.special_magenta)
+  hi("SpellLocal", "NONE", "NONE", "undercurl", c.type_color)
+  hi("IncSearch", "NONE", "NONE", "reverse") -- 注意这里可以根据喜好调整为链接到 Search
+
+  hi("HopNextKey", c.bg, c.string_yellow, "bold") -- 单字符提示，背景黄色，前景背景色
+  hi("HopNextKey1", c.bg, c.number_orange, "bold") -- 多字符提示的第一个字符，背景橙色
+  hi("HopNextKey2", c.bg, c.type_color) -- 多字符提示的后续字符，背景类型色，稍微柔和
+  hi("HopUnmatched", c.comment, "NONE") -- 不匹配的部分，使用注释颜色，低调
+  hi("HopCursor", "NONE", c.selection, "reverse") -- 伪光标，反转选区颜色，突出显示
+  hi("HopPreview", c.bg, c.special_magenta) -- 预览提示，背景洋红，前景背景色
+
+  local lualine_theme = {
+    normal = {
+      a = { fg = c.bg, bg = c.ui_purple, gui = "bold" },
+      b = { fg = c.grey_light, bg = c.selection },
+      c = { fg = c.fg, bg = c.bg_alt },
+    },
+    insert = {
+      a = { fg = c.bg, bg = c.string_yellow, gui = "bold" },
+      b = { fg = c.fg, bg = c.selection },
+      c = { fg = c.fg, bg = c.bg_alt },
+    },
+    visual = {
+      a = { fg = c.bg, bg = c.special_magenta, gui = "bold" },
+      b = { fg = c.fg, bg = c.selection },
+      c = { fg = c.fg, bg = c.bg_alt },
+    },
+    replace = {
+      a = { fg = c.bg, bg = c.error_red, gui = "bold" },
+      b = { fg = c.fg, bg = c.selection },
+      c = { fg = c.fg, bg = c.bg_alt },
+    },
+    command = {
+      a = { fg = c.bg, bg = c.number_orange, gui = "bold" },
+      b = { fg = c.fg, bg = c.selection },
+      c = { fg = c.fg, bg = c.bg_alt },
+    },
+    inactive = {
+      a = { fg = c.comment, bg = c.bg, gui = "bold" },
+      b = { fg = c.comment, bg = c.bg_darkest },
+      c = { fg = c.comment, bg = c.bg_darkest },
+    },
+  }
+
+  local augroup = vim.api.nvim_create_augroup("AlterAvengerColors", { clear = true })
+
+  vim.api.nvim_create_autocmd("ColorScheme", {
+    group = augroup,
+    pattern = "alter-avenger-muted",
+    callback = function()
+      if not package.loaded.lualine then
+        return
+      end
+
+      local lualine_config = require("lualine").get_config()
+      lualine_config.options.theme = lualine_theme
+
+      require("lualine").setup(lualine_config)
+    end,
+  })
 end
 
 M.setup()

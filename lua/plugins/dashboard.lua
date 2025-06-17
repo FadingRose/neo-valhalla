@@ -76,7 +76,7 @@ return {
                 })
             end,
             desc = " SYNC",
-            icon = "頻",  -- Removed trailing space in code (keep icon's internal space if needed)
+            icon = " 頻",  -- Removed trailing space in code (keep icon's internal space if needed)
             key = "y"
           },
           {

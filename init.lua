@@ -37,3 +37,9 @@ vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
   end,
   desc = "Set filetype for .tx files",
 })
+
+vim.diagnostic.config({
+  virtual_lines = {
+    current_line_only = true,
+  },
+})
