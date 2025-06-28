@@ -16,6 +16,22 @@ vim.opt.linespace = 1
 
 vim.o.guifont = "Maple Mono NF CN:h13"
 
+vim.api.nvim_create_autocmd("CursorHold", {
+  pattern = "*",
+  callback = function()
+    vim.diagnostic.config({ virtual_lines = { current_line = true } })
+  end,
+  desc = "Enable virtual_lines with current_line",
+})
+
+vim.api.nvim_create_autocmd("CursorMoved", {
+  pattern = "*",
+  callback = function()
+    vim.diagnostic.config({ virtual_lines = false })
+  end,
+  desc = "Disable virtual_lines",
+})
+
 -- vim.o.gui_font_size = 14
 -- Neovide-specific settings
 if vim.g.neovide then

@@ -21,6 +21,7 @@ syn match txArrow /└─\|├─\|←/
 syn match txContractAddress /\v0x[a-fA-F0-9]{40}/ display
 syn match txContractName /<\S*>/
 syn match txProxyType /\(Transparent\)\?UpgradeableProxy\|Proxy\>/
+syn match txLabelAddress /\v0x[a-fA-F0-9]{4}__[A-Z]+__[a-fA-F0-9]{4,}/
 
 " Function calls
 syn region txCall start=/├─ \[\d\+\] \S\+/ end=/)$/ contains=txGasUsage,txContractAddress,txFunctionName,txHexData
@@ -65,6 +66,7 @@ hi def link txArrow Special
 
 " Contracts
 hi def link txContractAddress Constant
+hi def link txLabelAddress Error
 hi def link txContractName Type
 hi def link txProxyType Type
 
