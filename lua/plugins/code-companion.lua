@@ -329,54 +329,54 @@ return {
           },
         })
       end,
-      -- siliconflow_v3 = function()
-      --   return require("codecompanion.adapters").extend("openai_compatible", {
-      --     opts = {
-      --       languages = "Chinese",
-      --     },
-      --     env = {
-      --       url = "https://api.siliconflow.cn",
-      --       api_key = function()
-      --         local key = vim.fn.getenv("SILICONFLOW_API_KEY")
-      --         return key
-      --       end,
-      --       chat_url = "/v1/chat/completions",
-      --     },
-      --     schema = {
-      --       model = {
-      --         default = "Pro/deepseek-ai/DeepSeek-V3",
-      --       },
-      --     },
-      --   })
-      -- end,
-      -- siliconflow_r1 = function()
-      --   return require("codecompanion.adapters").extend("deepseek", {
-      --     opts = {
-      --       languages = "Chinese",
-      --     },
-      --     name = "siliconflow_r1",
-      --     url = "https://api.siliconflow.cn/v1/chat/completions",
-      --     env = {
-      --       api_key = function()
-      --         local key = vim.fn.getenv("SILICONFLOW_API_KEY")
-      --         return key
-      --       end,
-      --       -- chat_url = "/v1/chat/completions",
-      --     },
-      --     schema = {
-      --       model = {
-      --         default = "Pro/deepseek-ai/DeepSeek-R1",
-      --         choices = {
-      --           ["Pro/deepseek-ai/DeepSeek-R1"] = { opts = { can_reason = true } },
-      --           "Pro/deepseek-ai/DeepSeek-V3",
-      --         },
-      --       },
-      --       temperature = {
-      --         default = 0.3,
-      --       },
-      --     },
-      --   })
-      -- end,
+      siliconflow_v3 = function()
+        return require("codecompanion.adapters").extend("openai_compatible", {
+          opts = {
+            languages = "Chinese",
+          },
+          env = {
+            url = "https://api.siliconflow.cn",
+            api_key = function()
+              local key = vim.fn.getenv("SILICONFLOW_API_KEY")
+              return key
+            end,
+            chat_url = "/v1/chat/completions",
+          },
+          schema = {
+            model = {
+              default = "Pro/deepseek-ai/DeepSeek-V3",
+            },
+          },
+        })
+      end,
+      siliconflow_r1 = function()
+        return require("codecompanion.adapters").extend("deepseek", {
+          opts = {
+            languages = "Chinese",
+          },
+          name = "siliconflow_r1",
+          url = "https://api.siliconflow.cn/v1/chat/completions",
+          env = {
+            api_key = function()
+              local key = vim.fn.getenv("SILICONFLOW_API_KEY")
+              return key
+            end,
+            -- chat_url = "/v1/chat/completions",
+          },
+          schema = {
+            model = {
+              default = "Pro/deepseek-ai/DeepSeek-R1",
+              choices = {
+                ["Pro/deepseek-ai/DeepSeek-R1"] = { opts = { can_reason = true } },
+                "Pro/deepseek-ai/DeepSeek-V3",
+              },
+            },
+            temperature = {
+              default = 0.3,
+            },
+          },
+        })
+      end,
     },
   },
 }

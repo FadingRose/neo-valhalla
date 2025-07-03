@@ -18,6 +18,13 @@ return {
       PERF = { icon = " ", alt = { "OPTIM", "PERFORMANCE", "OPTIMIZE" } },
       NOTE = { icon = " ", color = "hint", alt = { "INFO", "VIEW", "DATA" } },
       TEST = { icon = "⏲ ", color = "test", alt = { "TESTING", "PASSED", "FAILED" } },
+      HIGH = { icon = " ", color = "error" },
+      MEDI = { icon = " ", color = "warning", alt = { "ME" } },
+      LOW = { icon = " ", color = "info", alt = { "LO" } },
+      QUES = { icon = " ", color = "hint", alt = { "Question" } },
+      DEPR = { icon = " ", color = "deprecated", alt = { "DEPRECATED", "ARCHIVED" } },
+      CHEK = { icon = " ", color = "check", alt = { "check", "verify" } },
+      PASS = { icon = " ", color = "pass", alt = { "pass" } },
     },
     gui_style = {
       fg = "NONE", -- The gui style to use for the fg highlight group.
@@ -49,6 +56,9 @@ return {
       hint = { "DiagnosticHint", "#10B981" },
       default = { "Identifier", "#7C3AED" },
       test = { "Identifier", "#FF00FF" },
+      deprecated = { "Comment", "#6B7280" },
+      check = { "Comment", "#00FF00" },
+      pass = { "DiagnosticOk", "#00FF00" },
     },
     search = {
       command = "rg",

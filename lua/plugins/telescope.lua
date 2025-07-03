@@ -8,7 +8,12 @@ return {
     },
     config = function()
       require("telescope").setup({
-        -- Your Telescope configuration here
+        defaults = {
+          layout_config = {
+            horizontal = { preview_width = 0.7 },
+            vertical = { preview_height = 0.7 },
+          },
+        },
       })
     end,
   },
