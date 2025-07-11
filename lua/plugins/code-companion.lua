@@ -156,6 +156,107 @@ return {
         },
       },
 
+      ["Audit"] = {
+        strategy = "chat",
+        description = "Audit Solidity code",
+        opts = {
+          index = 5,
+          is_default = true,
+          is_slash_cmd = false,
+          modes = { "v" },
+          short_name = "audit solidity code",
+          auto_submit = true,
+          user_prompt = false,
+          stop_context_insertion = true,
+          adapter = {
+            name = "openrouter",
+            model = "google/gemini-2.5-pro",
+          },
+        },
+        prompts = {
+          {
+            role = "system",
+            content = [[
+            Audit the Solidity code for security vulnerabilities, gas optimization, and best practices.
+            ]],
+            opts = {
+              visible = false,
+            },
+          },
+          {
+            role = "user",
+            content = function(context)
+              local input = require("codecompanion.helpers.actions").get_code(context.start_line, context.end_line)
+
+              return string.format(
+                [[ Please handle content in buffer %d :
+
+  ```%s
+  %s
+  ```
+  ]],
+                context.bufnr,
+                context.filetype,
+                input
+              )
+            end,
+            opts = {
+              contains_code = true,
+            },
+          },
+        },
+      },
+
+      ["Trans CN"] = {
+        strategy = "chat",
+        description = "翻译为中文",
+        opts = {
+          index = 5,
+          is_default = true,
+          is_slash_cmd = false,
+          modes = { "v" },
+          short_name = "translate to Chinese",
+          auto_submit = true,
+          user_prompt = false,
+          stop_context_insertion = true,
+          adapter = {
+            name = "siliconflow_v3",
+            model = "Pro/deepseek-ai/DeepSeek-V3",
+          },
+        },
+        prompts = {
+          {
+            role = "system",
+            content = [[
+            翻译为中文
+            ]],
+            opts = {
+              visible = false,
+            },
+          },
+          {
+            role = "user",
+            content = function(context)
+              local input = require("codecompanion.helpers.actions").get_code(context.start_line, context.end_line)
+
+              return string.format(
+                [[ 
+
+  ```%s
+  %s
+  ```
+  ]],
+                context.filetype,
+                input
+              )
+            end,
+            opts = {
+              contains_code = true,
+            },
+          },
+        },
+      },
+
       ["Convert to one line "] = {
         strategy = "chat",
         description = "Convert to one line and add math latex",
@@ -310,12 +411,12 @@ return {
     --     },
     --   },
     strategies = {
-      chat = { adapter = "openrouter_flash_gemini" },
-      inline = { adapter = "openrouter_flash_gemini" },
-      agent = { adapter = "openrouter_flash_gemini" },
+      chat = { adapter = "openrouter" },
+      inline = { adapter = "openrouter" },
+      agent = { adapter = "openrouter" },
     },
     adapters = {
-      openrouter_flash_gemini = function()
+      openrouter = function()
         return require("codecompanion.adapters").extend("openai_compatible", {
           env = {
             url = "https://openrouter.ai/api",

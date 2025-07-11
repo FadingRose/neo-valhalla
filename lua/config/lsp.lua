@@ -1,15 +1,17 @@
--- local lspconfig = require("lspconfig")
--- local configs = require("lspconfig.configs")
+local lspconfig = require("lspconfig")
 
--- manully introduce solidity-language-server
--- npm install @nomicfoundation/solidity-language-server -g
--- configs.solidity = {
---   default_config = {
---     cmd = { "nomicfoundation-solidity-language-server", "--stdio" },
---     filetypes = { "solidity" },
---     root_dir = lspconfig.util.find_git_ancestor,
---     single_file_support = true,
---   },
--- }
---
--- lspconfig.solidity.setup({})
+lspconfig.pylsp.setup({
+  filetypes = { "python", "vyper", "vy" }, -- 添加 'vy'
+  settings = {
+    pylsp = {
+      plugins = {
+        pycodestyle = {
+          maxLineLength = 100,
+        },
+        yapf = {
+          enabled = true,
+        },
+      },
+    },
+  },
+})
