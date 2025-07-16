@@ -416,7 +416,7 @@ return {
       agent = { adapter = "openrouter" },
     },
     adapters = {
-      openrouter = function()
+      openrouter_flash = function()
         return require("codecompanion.adapters").extend("openai_compatible", {
           env = {
             url = "https://openrouter.ai/api",
@@ -425,7 +425,7 @@ return {
           },
           schema = {
             model = {
-              default = "google/gemini-2.5-flash-preview-05-20",
+              default = "google/gemini-2.5-flash",
             },
           },
         })
