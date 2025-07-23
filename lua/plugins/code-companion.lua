@@ -241,12 +241,8 @@ return {
 
               return string.format(
                 [[ 
-
-  ```%s
   %s
-  ```
   ]],
-                context.filetype,
                 input
               )
             end,
