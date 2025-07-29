@@ -168,7 +168,7 @@ return {
           user_prompt = false,
           stop_context_insertion = true,
           adapter = {
-            name = "openrouter",
+            name = "openrouter_flash",
             model = "google/gemini-2.5-pro",
           },
         },
