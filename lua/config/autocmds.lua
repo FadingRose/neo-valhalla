@@ -61,7 +61,7 @@ vim.cmd.chdir("~")
 
 vim.o.background = "dark"
 
-local theme = require("last-color").recall() or "carbonfox"
-vim.cmd.colorscheme(theme)
+-- local theme = require("last-color").recall() or "carbonfox"
+-- vim.cmd.colorscheme(theme)
 
 require("config.colorscheme")

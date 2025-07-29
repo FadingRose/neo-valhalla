@@ -28,31 +28,31 @@ vim.cmd([[
 ]])
 
 --- set filetype for .tx files
-vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
-  pattern = { "*.trace", "*.txlog", "*.tx" }, -- 你希望关联的文件后缀名
-  callback = function()
-    vim.bo.filetype = "tx"
-    vim.bo.commentstring = "# %s"
-  end,
-  desc = "Set filetype to tx for transaction trace logs",
-})
+-- vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
+--   pattern = { "*.trace", "*.txlog", "*.tx" }, -- 你希望关联的文件后缀名
+--   callback = function()
+--     vim.bo.filetype = "tx"
+--     vim.bo.commentstring = "# %s"
+--   end,
+--   desc = "Set filetype to tx for transaction trace logs",
+-- })
 
 --- set up tree-sitter for .tx files
-local parsers_config = require("nvim-treesitter.parsers").get_parser_configs()
-parsers_config.tx = {
-  install_info = {
-    url = "~/tree-sitter-tx-trace",
-    files = { "src/parser.c" },
-    generate_requires_npm = false,
-    requires_generate_from_grammar = false,
-  },
-  filetype = "tx",
-}
+-- local parsers_config = require("nvim-treesitter.parsers").get_parser_configs()
+-- parsers_config.tx = {
+--   install_info = {
+--     url = "~/tree-sitter-tx-trace",
+--     files = { "src/parser.c" },
+--     generate_requires_npm = false,
+--     requires_generate_from_grammar = false,
+--   },
+--   filetype = "tx",
+-- }
 
-require("nvim-treesitter.configs").setup({
-  ensure_installed = { "tx" },
-  highlight = {
-    enable = true,
-    additional_vim_regex_highlighting = false,
-  },
-})
+-- require("nvim-treesitter.configs").setup({
+--   ensure_installed = { "tx" },
+--   highlight = {
+--     enable = true,
+--     additional_vim_regex_highlighting = false,
+--   },
+-- })
