@@ -79,19 +79,19 @@ return {
             icon = " 頻",  -- Removed trailing space in code (keep icon's internal space if needed)
             key = "y"
           },
-          {
-            action = function()
-              vim.fn.chdir("~/ChantMaid-Obsidian-Workspace/")
-              require("telescope.builtin").find_files({
-                no_ignore = false,  -- 不忽略 .gitignore 和 .ignore 文件
-                hidden = true,      -- 显示隐藏文件
-                previewer = false,  -- 禁用预览窗口
-              })
-            end,
-            desc = " OPEN OBSIDIAN",
-            icon = "󰈙 ",  -- 使用 Obsidian 圖示
-            key = "o"
-          },
+          -- {
+          --   action = function()
+          --     vim.fn.chdir("~/ChantMaid-Obsidian-Workspace/")
+          --     require("telescope.builtin").find_files({
+          --       no_ignore = false,  -- 不忽略 .gitignore 和 .ignore 文件
+          --       hidden = true,      -- 显示隐藏文件
+          --       previewer = false,  -- 禁用预览窗口
+          --     })
+          --   end,
+          --   desc = " OPEN OBSIDIAN",
+          --   icon = "󰈙 ",  -- 使用 Obsidian 圖示
+          --   key = "o"
+          -- },
           {
             action = function()
               require("telescope.builtin").colorscheme({

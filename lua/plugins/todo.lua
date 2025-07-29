@@ -27,6 +27,7 @@ return {
       PASS = { icon = " ", color = "check", alt = { "pass" } },
       DONE = { icon = " ", color = "pass", alt = { "done", "completed" } },
       MISS = { icon = " ", color = "error", alt = { "missing" } },
+      TRANS = { icon = " ", color = "pass", alt = { "transfer", "transferFrom", "call" } },
     },
     gui_style = {
       fg = "NONE", -- The gui style to use for the fg highlight group.

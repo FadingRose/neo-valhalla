@@ -155,7 +155,6 @@ return {
           },
         },
       },
-
       ["Audit"] = {
         strategy = "chat",
         description = "Audit Solidity code",
@@ -206,7 +205,54 @@ return {
           },
         },
       },
+      ["Trans Variable CN"] = {
+        strategy = "chat",
+        description = "把变量翻译为中文",
+        opts = {
+          index = 5,
+          is_default = true,
+          is_slash_cmd = false,
+          modes = { "v" },
+          short_name = "translate to Chinese",
+          auto_submit = true,
+          user_prompt = false,
+          stop_context_insertion = true,
+          adapter = {
+            name = "openrouter_flash",
+          },
+        },
+        prompts = {
+          {
+            role = "system",
+            content = [[
+            读取代码块，并把变量翻译为中文，解释其语义。 
+            ]],
+            opts = {
+              visible = false,
+            },
+          },
+          {
+            role = "user",
+            content = function(context)
+              local input = require("codecompanion.helpers.actions").get_code(context.start_line, context.end_line)
 
+              return string.format(
+                [[ 
+
+  ```%s
+  %s
+  ```
+  ]],
+                context.filetype,
+                input
+              )
+            end,
+            opts = {
+              contains_code = true,
+            },
+          },
+        },
+      },
       ["Trans CN"] = {
         strategy = "chat",
         description = "翻译为中文",
@@ -252,7 +298,6 @@ return {
           },
         },
       },
-
       ["Convert to one line "] = {
         strategy = "chat",
         description = "Convert to one line and add math latex",
