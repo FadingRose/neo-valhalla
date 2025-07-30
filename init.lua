@@ -5,6 +5,15 @@ vim.opt.signcolumn = "yes"
 
 require("config.lsp")
 
+-- todo
+require("custom_plugins.todo").setup({
+  tododir = "~/todo",
+})
+
+vim.keymap.set("n", "<leader>td", function()
+  require("custom_plugins.todo").open_today_todo_popup()
+end, { desc = "Open Today's Todos" })
+
 -- now the w and b only move cursor at the same line
 vim.cmd([[
   function! CustomW()
