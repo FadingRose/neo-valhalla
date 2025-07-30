@@ -31,7 +31,7 @@ end
 --- Opens today's todo file in a floating window.
 function M.open_today_todo_popup()
   local date_str = os.date("%m-%d-%Y")
-  local todo_filename = date_str .. ".todo.md"
+  local todo_filename = date_str .. ".todo"
   local todo_filepath = M.tododir .. "/" .. todo_filename
 
   -- Ensure the directory exists
@@ -46,9 +46,16 @@ function M.open_today_todo_popup()
     for line in file:lines() do
       table.insert(file_content, line)
     end
-    io.close(file)
+    file:close()
   else
-    table.insert(file_content, default_header)
+    -- Create the file since it doesn't exist
+    local new_file = io.open(todo_filepath, "w")
+    if new_file then
+      new_file:write(default_header)
+      new_file:close()
+    end
+    -- Split the header string into a table of lines for the buffer
+    file_content = vim.split(default_header, "\n")
   end
 
   local buf = vim.api.nvim_create_buf(false, true) -- autocmd_buf (temporary), no_undo
@@ -108,6 +115,100 @@ function M.open_today_todo_popup()
     end,
     once = true, -- Ensure it runs only once per buffer close event
   })
+
+  -- Set buffer-local keymaps
+  -- 'a' for [a]ppend new todo item
+  vim.api.nvim_buf_set_keymap(buf, "n", "a", "", {
+    noremap = true,
+    silent = true,
+    desc = "Append new todo item",
+    callback = function()
+      local cursor_pos = vim.api.nvim_win_get_cursor(win_id)
+      local current_line_num = cursor_pos[1] -- 1-based
+      local total_lines = vim.api.nvim_buf_line_count(buf)
+
+      local insert_before_line = -1 -- Sentinel: -1 means append to end
+
+      -- Search for the next topic from the current line onwards
+      if current_line_num <= total_lines then
+        local lines_to_search = vim.api.nvim_buf_get_lines(buf, current_line_num - 1, total_lines, false)
+        for i, line in ipairs(lines_to_search) do
+          if line:match("^%s*%+") then
+            -- Found a topic header. Its line number is current_line_num + i - 1
+            insert_before_line = current_line_num + i - 1
+            break
+          end
+        end
+      end
+
+      local new_line_content = { "- [ ] " }
+      local cursor_target_line
+
+      if insert_before_line ~= -1 then
+        -- Insert before the found topic header (API is 0-based)
+        local insert_idx = insert_before_line - 1
+        vim.api.nvim_buf_set_lines(buf, insert_idx, insert_idx, false, new_line_content)
+        cursor_target_line = insert_before_line
+      else
+        -- No topic found, append to the end of the buffer
+        vim.api.nvim_buf_set_lines(buf, total_lines, -1, false, new_line_content)
+        cursor_target_line = total_lines + 1
+      end
+
+      -- Move cursor to new line and enter insert mode at the end of it
+      vim.api.nvim_win_set_cursor(win_id, { cursor_target_line, 0 })
+      vim.cmd("startinsert!")
+    end,
+  })
+
+  -- 'c' for [c]heck/uncheck todo item
+  vim.api.nvim_buf_set_keymap(buf, "n", "c", "", {
+    noremap = true,
+    silent = true,
+    desc = "Toggle todo item checkbox",
+    callback = function()
+      local cursor_pos = vim.api.nvim_win_get_cursor(win_id)
+      local line_num = cursor_pos[1]
+      local line = vim.api.nvim_buf_get_lines(buf, line_num - 1, line_num, false)[1]
+
+      if line then
+        local new_line
+        if line:match("^%s*%- %[ %] ") then
+          new_line = line:gsub("%[ %]", "[x]", 1)
+        elseif line:match("^%s*%- %[x%] ") then
+          new_line = line:gsub("%[x%]", "[ ]", 1)
+        end
+
+        if new_line then
+          vim.api.nvim_buf_set_lines(buf, line_num - 1, line_num, false, { new_line })
+        end
+      end
+    end,
+  })
+
+  -- 'A' for [A]ppending a new topic header
+  vim.api.nvim_buf_set_keymap(buf, "n", "A", "", {
+    noremap = true,
+    silent = true,
+    desc = "Append a new topic header",
+    callback = function()
+      vim.ui.input({ prompt = "Topic: " }, function(topic)
+        -- Ensure the user entered something and didn't cancel
+        if topic and topic:gsub("%s*", "") ~= "" then
+          local formatted_topic = "+----- " .. topic .. " -----+"
+          local line_count = vim.api.nvim_buf_line_count(buf)
+          -- Append an empty line for spacing, then the topic
+          vim.api.nvim_buf_set_lines(buf, line_count, -1, false, { "", formatted_topic })
+          -- Optional: move cursor below the new topic and enter insert mode
+          vim.api.nvim_buf_set_lines(buf, line_count + 2, -1, false, { "- [ ] " })
+          vim.api.nvim_win_set_cursor(win_id, { line_count + 3, 7 })
+          vim.cmd("startinsert")
+        end
+      end)
+    end,
+  })
+
+  vim.keymap.set("n", "q", ":close<CR>", { buffer = true, silent = true })
 
   vim.api.nvim_set_current_win(win_id)
   vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("G", true, false, true), "n", false) -- Go to end
