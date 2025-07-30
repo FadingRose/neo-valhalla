@@ -114,6 +114,7 @@ return {
           },
           {
             action = function()
+              require("custom_plugins.todo").open_today_todo_popup()
             end,
             desc = " TODO Dashboard",
             icon = " ",

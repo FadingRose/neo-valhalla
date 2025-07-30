@@ -3,6 +3,8 @@ local M = {}
 -- Store the configured todo directory
 M.tododir = vim.fn.expand("~/todo") -- Default value
 
+local git_timer
+
 --- Sets up the todo plugin with user options.
 --- @param opts table
 ---   opts.tododir string? The directory to store todo files. Defaults to '~/todo'.
@@ -10,6 +12,19 @@ function M.setup(opts)
   opts = opts or {}
   if opts.tododir then
     M.tododir = vim.fn.expand(opts.tododir)
+  end
+
+  if not git_timer then
+    git_timer = vim.uv.new_timer()
+    local timer_callback = vim.schedule_wrap(function()
+      vim.notify("Git Sync: Starting pull and push...", vim.log.levels.INFO, { title = "Todo Plugin" })
+      -- Run in the background. Note: this is a simple implementation.
+      -- For robust error handling, you might check command exit codes.
+      vim.fn.system({ "git", "-C", M.tododir, "pull", "--rebase" })
+      vim.fn.system({ "git", "-C", M.tododir, "push" })
+      vim.notify("Git Sync: Finished.", vim.log.levels.INFO, { title = "Todo Plugin" })
+    end)
+    git_timer:start(0, 3600000, timer_callback) -- Every hour
   end
 end
 
@@ -61,7 +76,7 @@ function M.open_today_todo_popup()
     title_pos = "center",
   })
 
-  -- Autocommand to save buffer on WinLeave and BufDelete
+  -- Autocommand to save buffer and commit changes on WinLeave and BufDelete
   vim.api.nvim_create_autocmd({ "BufLeave", "BufDelete" }, {
     buffer = buf,
     callback = function()
@@ -73,6 +88,19 @@ function M.open_today_todo_popup()
           out_file:write(table.concat(lines, "\n"))
           io.close(out_file)
           vim.notify("Todo file saved: " .. current_filepath, vim.log.levels.INFO, { title = "Todo Plugin" })
+
+          -- Git operations after saving the file
+          -- 1. Add the file to the staging area
+          vim.fn.system({ "git", "-C", M.tododir, "add", current_filepath })
+
+          -- 2. Check if there are changes to commit for this file
+          local git_status = vim.fn.system({ "git", "-C", M.tododir, "status", "--porcelain", "--", current_filepath })
+          if git_status and git_status ~= "" then
+            -- 3. Commit the changes with an automatic message
+            local commit_message = "Auto-commit: update for " .. date_str
+            vim.fn.system({ "git", "-C", M.tododir, "commit", "-m", commit_message })
+            vim.notify("Changes committed for " .. todo_filename, vim.log.levels.INFO, { title = "Todo Plugin" })
+          end
         else
           vim.notify("Failed to save todo file: " .. current_filepath, vim.log.levels.ERROR, { title = "Todo Plugin" })
         end
