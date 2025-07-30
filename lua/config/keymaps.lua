@@ -83,3 +83,15 @@ vim.keymap.set("n", "<C-->", function()
   local size = vim.o.guifont:match("%d+")
   vim.o.guifont = vim.o.guifont:gsub("%d+", size - 1)
 end, { desc = "Decrease font size" })
+
+vim.keymap.set("x", "<leader>wc", 'c\\code{<C-r>"}<Esc>', {
+  noremap = true,
+  silent = true,
+  desc = "Wrap selection with \\code{}",
+})
+
+vim.keymap.set("x", "<leader>wC", 'c\\tcode{<C-r>"}<Esc>', {
+  noremap = true,
+  silent = true,
+  desc = "Wrap selection with \\tcode{}",
+})

@@ -274,7 +274,6 @@ return {
           {
             role = "system",
             content = [[
-            翻译为中文
             ]],
             opts = {
               visible = false,
@@ -287,13 +286,16 @@ return {
 
               return string.format(
                 [[ 
+  ```markdown
   %s
+  ```
+  将代码注释或纯文本翻译为中文，不需要额外解释
   ]],
                 input
               )
             end,
             opts = {
-              contains_code = true,
+              contains_code = false,
             },
           },
         },
@@ -346,11 +348,27 @@ return {
       },
     },
     strategies = {
-      chat = { adapter = "openrouter_flash" },
+      chat = { adapter = "openrouter_pro" },
       inline = { adapter = "openrouter_flash" },
       agent = { adapter = "openrouter_flash" },
     },
     adapters = {
+
+      openrouter_pro = function()
+        return require("codecompanion.adapters").extend("openai_compatible", {
+          env = {
+            url = "https://openrouter.ai/api",
+            api_key = vim.fn.getenv("OPENROUTER_API_KEY"),
+            chat_url = "/v1/chat/completions",
+          },
+          schema = {
+            model = {
+              default = "google/gemini-2.5-pro-preview",
+            },
+          },
+        })
+      end,
+
       openrouter_flash = function()
         return require("codecompanion.adapters").extend("openai_compatible", {
           env = {
