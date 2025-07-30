@@ -48,7 +48,7 @@ return {
         center = {
           { action = 'lua LazyVim.pick("oldfiles")()',                 desc = " 調閱歷史污染數據██（30日內）",    icon = " ", key = "r" },
           { action = 'lua require("persistence").select()',              desc = " 載入██廢墟數據（.session檔案）", icon = " ", key = "s" },
-          { action = 'lua LazyVim.pick.config_files()()',              desc = " CONFIGURATION",          icon = " ", key = "c" },
+          { action = 'lua LazyVim.pick.config_files()()',              desc = " 同步協議",          icon = " ", key = "c" },
           {
             action = function()
                 require("noice").notify(
@@ -67,7 +67,7 @@ return {
                 })
             end,
             desc = " SYNC",
-            icon = "󱋖 ",  -- Removed trailing space in code (keep icon's internal space if needed)
+            icon = "󱋖 ",
             key = "y"
           },
           {
