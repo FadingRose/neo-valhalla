@@ -7,7 +7,7 @@ local git_timer
 
 --- Sets up the todo plugin with user options.
 --- @param opts table
----   opts.tododir string? The directory to store todo files. Defaults to '~/todo'.
+---   opts.tododir string? The directory to store todo files. Defaults to '~/.config/todo'.
 function M.setup(opts)
   opts = opts or {}
   if opts.tododir then
@@ -24,6 +24,45 @@ function M.setup(opts)
   --     end)
   --     git_timer:start(0, 6000000, timer_callback) -- Every hour
   --   end
+end
+
+--- Synchronizes the todo directory with the remote git repository.
+function M.sync(on_complete)
+  local notify = function(msg, level)
+    -- 使用 vim.schedule 確保在主線程中安全地發送通知
+    vim.schedule(function()
+      require("noice").notify(msg, level or "info")
+    end)
+  end
+
+  notify("Git Sync: Starting pull...")
+  vim.fn.jobstart({ "git", "-C", M.tododir, "pull", "--rebase" }, {
+    on_exit = function(_, pull_code)
+      if pull_code ~= 0 then
+        notify("Git Sync: Pull failed.", "error")
+        if on_complete then
+          on_complete(pull_code)
+        end
+        return
+      end
+
+      notify("Git Sync: Pull finished.")
+      notify("Git Sync: Starting push...")
+
+      vim.fn.jobstart({ "git", "-C", M.tododir, "push" }, {
+        on_exit = function(_, push_code)
+          if push_code ~= 0 then
+            notify("Git Sync: Push failed.", "error")
+          else
+            notify("Git Sync: Push finished.")
+          end
+          if on_complete then
+            on_complete(push_code)
+          end
+        end,
+      })
+    end,
+  })
 end
 
 --- Opens today's todo file in a floating window.

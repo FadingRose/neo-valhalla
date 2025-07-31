@@ -53,6 +53,17 @@ return {
             action = function()
                 require("noice").notify(
                   "// [SYNC協議] :: 神經檔案同步中...","info")
+                require("custom_plugins.todo").sync(function(code)
+                  if code ~= 0 then
+                    require("noice").notify("// [SYNC協議] :: PLANNING 檔案同步失敗", "error")
+                  end
+                  if code == 0 then
+                      vim.schedule(function()
+                        require("noice").notify("// [SYNC協議] :: PLANNING 檔案同步完成", "info")
+                      end)
+                  end
+                end)
+
                 vim.fn.jobstart({"sh", "-c", "~/.config/nvim/auto_commit.sh"}, {
                   on_exit = function(_, code)
                     if code ~= 0 then
@@ -116,7 +127,7 @@ return {
             action = function()
               require("custom_plugins.todo").open_today_todo_popup()
             end,
-            desc = " TODO Dashboard",
+            desc = " TODO",
             icon = " ",
             key = "o"
           },
