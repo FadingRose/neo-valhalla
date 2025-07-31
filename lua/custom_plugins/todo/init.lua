@@ -280,8 +280,6 @@ function M.open_today_todo_popup()
   vim.keymap.set("n", "q", ":close<CR>", { buffer = true, silent = true })
 
   vim.api.nvim_set_current_win(win_id)
-  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("G", true, false, true), "n", false) -- Go to end
-  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("A", true, false, true), "n", false) -- Enter insert mode at end
 end
 
 return M
