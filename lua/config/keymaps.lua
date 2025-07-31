@@ -24,6 +24,10 @@
 -- -- 原本的 'h' (向左移动) 的功能已被上面的 'i' 键映射所取代。
 -- vim.keymap.set("n", "h", "i", { noremap = true, desc = "Enter Insert Mode" })
 
+-- 在可视模式下使用 J 和 K 上下移动选中的代码块
+vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move selected block down", silent = true })
+vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv", { desc = "Move selected block up", silent = true })
+
 -- Resize window using <Alt+Arrow> keys
 vim.keymap.set("n", "<M-Left>", "<cmd>vertical resize -2<cr>", { desc = "Decrease Window Width" })
 vim.keymap.set("n", "<M-Down>", "<cmd>resize +2<cr>", { desc = "Increase Window Height" })

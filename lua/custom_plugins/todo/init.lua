@@ -3,7 +3,45 @@ local M = {}
 -- Store the configured todo directory
 M.tododir = vim.fn.expand("~/.config/todo") -- Default value
 
-local git_timer
+-- Function to find the correct insertion index for a new todo item
+local function find_insertion_index(buf, win_id)
+  local cursor_pos = vim.api.nvim_win_get_cursor(win_id)
+  local current_line_num = cursor_pos[1] -- 1-based
+  local total_lines = vim.api.nvim_buf_line_count(buf)
+
+  local insert_before_line = -1 -- Sentinel: -1 means append to end
+
+  -- Search for the next topic from the current line onwards
+  if current_line_num <= total_lines then
+    local lines_to_search = vim.api.nvim_buf_get_lines(buf, current_line_num - 1, total_lines, false)
+    for i, line in ipairs(lines_to_search) do
+      if line:match("^%s*%+") then
+        -- Found a topic header. Its line number is current_line_num + i - 1
+        insert_before_line = current_line_num + i - 1
+        break
+      end
+    end
+  end
+
+  local insert_idx
+  if insert_before_line ~= -1 then
+    insert_idx = insert_before_line - 1 -- API is 0-based
+  else
+    insert_idx = total_lines -- Append to the end
+  end
+
+  -- Adjust insertion point up if the preceding line is empty
+  while insert_idx > 0 do
+    local prev_line = vim.api.nvim_buf_get_lines(buf, insert_idx - 1, insert_idx, false)[1]
+    if prev_line and prev_line:match("^%s*$") then
+      insert_idx = insert_idx - 1
+    else
+      break
+    end
+  end
+
+  return insert_idx
+end
 
 --- Sets up the todo plugin with user options.
 --- @param opts table
@@ -154,50 +192,35 @@ function M.open_today_todo_popup()
   })
 
   -- Set buffer-local keymaps
-  -- 'a' for append new [t]odo item
+  -- 't' for append new [t]odo item
   vim.api.nvim_buf_set_keymap(buf, "n", "t", "", {
     noremap = true,
     silent = true,
     desc = "Append new todo item",
     callback = function()
-      local cursor_pos = vim.api.nvim_win_get_cursor(win_id)
-      local current_line_num = cursor_pos[1] -- 1-based
-      local total_lines = vim.api.nvim_buf_line_count(buf)
-
-      local insert_before_line = -1 -- Sentinel: -1 means append to end
-
-      -- Search for the next topic from the current line onwards
-      if current_line_num <= total_lines then
-        local lines_to_search = vim.api.nvim_buf_get_lines(buf, current_line_num - 1, total_lines, false)
-        for i, line in ipairs(lines_to_search) do
-          if line:match("^%s*%+") then
-            -- Found a topic header. Its line number is current_line_num + i - 1
-            insert_before_line = current_line_num + i - 1
-            break
-          end
-        end
-      end
-
+      local insert_idx = find_insertion_index(buf, win_id)
       local new_line_content = { "- [ ] " }
-      local insert_idx
 
-      if insert_before_line ~= -1 then
-        insert_idx = insert_before_line - 1 -- API is 0-based
-      else
-        insert_idx = total_lines -- Append to the end
-      end
+      -- Insert the new line at the determined position
+      vim.api.nvim_buf_set_lines(buf, insert_idx, insert_idx, false, new_line_content)
+      local cursor_target_line = insert_idx + 1
 
-      -- Adjust insertion point up if the preceding line is empty
-      while insert_idx > 0 do
-        local prev_line_content = vim.api.nvim_buf_get_lines(buf, insert_idx - 1, insert_idx, false)[1]
-        if prev_line_content and prev_line_content:match("^%s*$") then
-          insert_idx = insert_idx - 1
-        else
-          break
-        end
-      end
+      -- Move cursor to new line and enter insert mode at the end of it
+      vim.api.nvim_win_set_cursor(win_id, { cursor_target_line, 0 })
+      vim.cmd("startinsert!")
+    end,
+  })
 
-      -- Insert the new line at the final adjusted position
+  -- 's' for append new [s]ub-todo item
+  vim.api.nvim_buf_set_keymap(buf, "n", "s", "", {
+    noremap = true,
+    silent = true,
+    desc = "Append new todo item",
+    callback = function()
+      local insert_idx = find_insertion_index(buf, win_id)
+      local new_line_content = { "  |- [ ] " }
+
+      -- Insert the new line at the determined position
       vim.api.nvim_buf_set_lines(buf, insert_idx, insert_idx, false, new_line_content)
       local cursor_target_line = insert_idx + 1
 
@@ -219,9 +242,9 @@ function M.open_today_todo_popup()
 
       if line then
         local new_line
-        if line:match("^%s*%- %[ %] ") then
+        if line:match("^%s*|?%-%s*%[ %] ") then
           new_line = line:gsub("%[ %]", "[x]", 1)
-        elseif line:match("^%s*%- %[x%] ") then
+        elseif line:match("^%s*|?%-%s*%[x%] ") then
           new_line = line:gsub("%[x%]", "[ ]", 1)
         end
 
