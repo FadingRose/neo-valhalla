@@ -73,26 +73,23 @@ function M.sync(on_complete)
     end)
   end
 
-  notify("Git Sync: Starting pull...")
   vim.fn.jobstart({ "git", "-C", M.tododir, "pull", "--rebase" }, {
     on_exit = function(_, pull_code)
       if pull_code ~= 0 then
-        notify("Git Sync: Pull failed.", "error")
+        notify("Todo Git Sync: Pull failed.", "error")
         if on_complete then
           on_complete(pull_code)
         end
         return
       end
 
-      notify("Git Sync: Pull finished.")
-      notify("Git Sync: Starting push...")
+      -- notify("Git Sync: Pull finished.")
+      -- notify("Git Sync: Starting push...")
 
       vim.fn.jobstart({ "git", "-C", M.tododir, "push" }, {
         on_exit = function(_, push_code)
           if push_code ~= 0 then
             notify("Git Sync: Push failed.", "error")
-          else
-            notify("Git Sync: Push finished.")
           end
           if on_complete then
             on_complete(push_code)
