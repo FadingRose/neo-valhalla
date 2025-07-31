@@ -166,7 +166,7 @@ function M.open_today_todo_popup()
         if out_file then
           out_file:write(table.concat(lines, "\n"))
           io.close(out_file)
-          vim.notify("Todo file saved: " .. current_filepath, vim.log.levels.INFO, { title = "Todo Plugin" })
+          -- vim.notify("Todo file saved: " .. current_filepath, vim.log.levels.INFO, { title = "Todo Plugin" })
 
           -- Git operations after saving the file
           -- 1. Add the file to the staging area
@@ -178,7 +178,7 @@ function M.open_today_todo_popup()
             -- 3. Commit the changes with an automatic message
             local commit_message = "Auto-commit: update for " .. date_str
             vim.fn.system({ "git", "-C", M.tododir, "commit", "-m", commit_message })
-            vim.notify("Changes committed for " .. todo_filename, vim.log.levels.INFO, { title = "Todo Plugin" })
+            -- vim.notify("Changes committed for " .. todo_filename, vim.log.levels.INFO, { title = "Todo Plugin" })
           end
         else
           vim.notify("Failed to save todo file: " .. current_filepath, vim.log.levels.ERROR, { title = "Todo Plugin" })
