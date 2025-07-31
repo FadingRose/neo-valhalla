@@ -1,7 +1,7 @@
 local M = {}
 
 -- Store the configured todo directory
-M.tododir = vim.fn.expand("~/todo") -- Default value
+M.tododir = vim.fn.expand("~/.config/todo") -- Default value
 
 local git_timer
 
