@@ -113,7 +113,7 @@ function M.open_today_todo_popup()
     col = col,
     width = width,
     height = height,
-    border = "single",
+    border = "rounded",
     focusable = true,
     style = "minimal",
     title = "Today's Todos",
@@ -154,8 +154,8 @@ function M.open_today_todo_popup()
   })
 
   -- Set buffer-local keymaps
-  -- 'a' for [a]ppend new todo item
-  vim.api.nvim_buf_set_keymap(buf, "n", "a", "", {
+  -- 'a' for append new [t]odo item
+  vim.api.nvim_buf_set_keymap(buf, "n", "t", "", {
     noremap = true,
     silent = true,
     desc = "Append new todo item",
@@ -179,18 +179,27 @@ function M.open_today_todo_popup()
       end
 
       local new_line_content = { "- [ ] " }
-      local cursor_target_line
+      local insert_idx
 
       if insert_before_line ~= -1 then
-        -- Insert before the found topic header (API is 0-based)
-        local insert_idx = insert_before_line - 1
-        vim.api.nvim_buf_set_lines(buf, insert_idx, insert_idx, false, new_line_content)
-        cursor_target_line = insert_before_line
+        insert_idx = insert_before_line - 1 -- API is 0-based
       else
-        -- No topic found, append to the end of the buffer
-        vim.api.nvim_buf_set_lines(buf, total_lines, -1, false, new_line_content)
-        cursor_target_line = total_lines + 1
+        insert_idx = total_lines -- Append to the end
       end
+
+      -- Adjust insertion point up if the preceding line is empty
+      while insert_idx > 0 do
+        local prev_line_content = vim.api.nvim_buf_get_lines(buf, insert_idx - 1, insert_idx, false)[1]
+        if prev_line_content and prev_line_content:match("^%s*$") then
+          insert_idx = insert_idx - 1
+        else
+          break
+        end
+      end
+
+      -- Insert the new line at the final adjusted position
+      vim.api.nvim_buf_set_lines(buf, insert_idx, insert_idx, false, new_line_content)
+      local cursor_target_line = insert_idx + 1
 
       -- Move cursor to new line and enter insert mode at the end of it
       vim.api.nvim_win_set_cursor(win_id, { cursor_target_line, 0 })
@@ -223,8 +232,8 @@ function M.open_today_todo_popup()
     end,
   })
 
-  -- 'A' for [A]ppending a new topic header
-  vim.api.nvim_buf_set_keymap(buf, "n", "A", "", {
+  -- 'T' for a new [t]opic header
+  vim.api.nvim_buf_set_keymap(buf, "n", "T", "", {
     noremap = true,
     silent = true,
     desc = "Append a new topic header",
