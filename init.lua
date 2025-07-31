@@ -7,7 +7,7 @@ require("config.lsp")
 
 -- todo
 require("custom_plugins.todo").setup({
-  tododir = "~/todo",
+  tododir = "~/.config/todo/",
 })
 
 vim.keymap.set("n", "<leader>td", function()
