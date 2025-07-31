@@ -14,12 +14,16 @@ function M.setup(opts)
     M.tododir = vim.fn.expand(opts.tododir)
   end
 
-  -- if not git_timer then
-  --   git_timer = vim.uv.new_timer()
-  --   local timer_callback = vim.schedule_wrap(function()
-  --   end)
-  --   git_timer:start(0, 3600000, timer_callback) -- Every hour
-  -- end
+  --   if not git_timer then
+  --     git_timer = vim.uv.new_timer()
+  --     local timer_callback = vim.schedule_wrap(function()
+  --       vim.notify("Git Sync: Starting pull and push...", vim.log.levels.INFO, { title = "Todo Plugin" })
+  --       vim.fn.system({ "git", "-C", M.tododir, "pull", "--rebase" })
+  --       vim.fn.system({ "git", "-C", M.tododir, "push" })
+  --       vim.notify("Git Sync: Finished.", vim.log.levels.INFO, { title = "Todo Plugin" })
+  --     end)
+  --     git_timer:start(0, 6000000, timer_callback) -- Every hour
+  --   end
 end
 
 --- Opens today's todo file in a floating window.
@@ -101,10 +105,6 @@ function M.open_today_todo_popup()
             local commit_message = "Auto-commit: update for " .. date_str
             vim.fn.system({ "git", "-C", M.tododir, "commit", "-m", commit_message })
             vim.notify("Changes committed for " .. todo_filename, vim.log.levels.INFO, { title = "Todo Plugin" })
-            vim.notify("Git Sync: Starting pull and push...", vim.log.levels.INFO, { title = "Todo Plugin" })
-            vim.fn.system({ "git", "-C", M.tododir, "pull", "--rebase" })
-            vim.fn.system({ "git", "-C", M.tododir, "push" })
-            vim.notify("Git Sync: Finished.", vim.log.levels.INFO, { title = "Todo Plugin" })
           end
         else
           vim.notify("Failed to save todo file: " .. current_filepath, vim.log.levels.ERROR, { title = "Todo Plugin" })
