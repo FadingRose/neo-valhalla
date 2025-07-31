@@ -148,12 +148,15 @@ function M.open_today_todo_popup()
     col = col,
     width = width,
     height = height,
-    border = "rounded",
+    border = { "╭", "─", "╮", "│", "╯", "─", "╰", "│" },
     focusable = true,
     style = "minimal",
     title = "Today's Todos",
     title_pos = "center",
   })
+
+  -- Enable line wrapping for the popup window
+  vim.api.nvim_set_option_value("wrap", true, { win = win_id })
 
   -- Autocommand to save buffer and commit changes on WinLeave and BufDelete
   vim.api.nvim_create_autocmd({ "BufLeave", "BufDelete" }, {

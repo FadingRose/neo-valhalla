@@ -43,4 +43,4 @@ require("nightfox").setup({
 })
 
 -- setup must be called before loading
-vim.cmd("colorscheme rose-pine-dawn")
+-- vim.cmd("clorscheme rose-pine-dawn")

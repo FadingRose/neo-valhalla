@@ -10,10 +10,6 @@ require("custom_plugins.todo").setup({
   tododir = "~/.config/todo/",
 })
 
-vim.keymap.set("n", "<leader>td", function()
-  require("custom_plugins.todo").open_today_todo_popup()
-end, { desc = "Open Today's Todos" })
-
 -- now the w and b only move cursor at the same line
 vim.cmd([[
   function! CustomW()
@@ -36,7 +32,7 @@ vim.cmd([[
   nnoremap <silent> b :call CustomB()<CR>
 ]])
 
---- set filetype for .tx files
+-- set filetype for .tx files
 -- vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
 --   pattern = { "*.trace", "*.txlog", "*.tx" }, -- 你希望关联的文件后缀名
 --   callback = function()
