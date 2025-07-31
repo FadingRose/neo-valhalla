@@ -53,6 +53,7 @@ return {
             action = function()
                 require("noice").notify(
                   "// [SYNC協議] :: 神經檔案同步中...","info")
+
                 require("custom_plugins.todo").sync(function(code)
                   if code ~= 0 then
                     require("noice").notify("// [SYNC協議] :: PLANNING 檔案同步失敗", "error")
