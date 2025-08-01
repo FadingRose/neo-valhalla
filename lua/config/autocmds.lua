@@ -32,6 +32,13 @@ vim.api.nvim_create_autocmd("CursorMoved", {
   desc = "Disable virtual_lines",
 })
 
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "markdown" }, -- Add other filetypes as needed
+  callback = function()
+    vim.wo.spell = false
+  end,
+})
+
 -- vim.o.gui_font_size = 14
 -- Neovide-specific settings
 if vim.g.neovide then
@@ -64,4 +71,9 @@ vim.o.background = "dark"
 -- local theme = require("last-color").recall() or "carbonfox"
 -- vim.cmd.colorscheme(theme)
 
+-- require("snacks.toggle").option("spell", { global = false })
+-- require("snacks").setup({
+--   words = { enabled = false },
+-- })
+--
 require("config.colorscheme")

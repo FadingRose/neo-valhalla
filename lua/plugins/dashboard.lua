@@ -126,7 +126,9 @@ return {
           },
           {
             action = function()
-              require("custom_plugins.todo").open_today_todo_popup()
+              -- require("custom_plugins.todo").open_today_todo_popup()
+              vim.fn.chdir(vim.fn.expand("~/.config/todo/"))
+              require("telescope.builtin").find_files()
             end,
             desc = " TODO",
             icon = " ",

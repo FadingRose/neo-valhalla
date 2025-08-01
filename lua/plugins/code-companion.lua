@@ -253,6 +253,43 @@ return {
           },
         },
       },
+
+      ["Trans to English"] = {
+        strategy = "chat",
+        description = "Translate to English",
+        opts = {
+          index = 5,
+          is_default = true,
+          is_slash_cmd = false,
+          modes = { "v" },
+          short_name = "translate to english",
+          auto_submit = true,
+          user_prompt = false,
+          stop_context_insertion = true,
+          adapter = {
+            name = "qwen_cn_to_en",
+            model = "qwen-mt-turbo",
+          },
+        },
+        prompts = {
+          {
+            role = "user",
+            content = function(context)
+              local input = require("codecompanion.helpers.actions").get_code(context.start_line, context.end_line)
+              return string.format(
+                [[ 
+  %s
+  ]],
+                input
+              )
+            end,
+            opts = {
+              contains_code = false,
+            },
+          },
+        },
+      },
+
       ["Trans CN"] = {
         strategy = "chat",
         description = "翻译为中文",
@@ -353,6 +390,24 @@ return {
       agent = { adapter = "openrouter_flash" },
     },
     adapters = {
+      qwen_cn_to_en = function()
+        return require("codecompanion.adapters").extend("openai_compatible", {
+          env = {
+            url = "https://dashscope.aliyuncs.com/compatible-mode",
+            api_key = vim.fn.getenv("DASHSCOPE_API_KEY"),
+            chat_url = "/v1/chat/completions",
+          },
+          schema = {
+            model = {
+              default = "qwen-mt-turbo",
+            },
+            translation_options = {
+              source_language = "Chinese",
+              target_lang = "English",
+            },
+          },
+        })
+      end,
 
       openrouter_pro = function()
         return require("codecompanion.adapters").extend("openai_compatible", {

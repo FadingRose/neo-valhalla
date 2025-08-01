@@ -9,7 +9,7 @@ return {
       -- the node types you would like to target
       -- using treesitter
       file_types = {
-        ["markdown"] = "any", -- highlight any node
+        -- ["markdown"] = "any", -- highlight any node
         -- EX: only highlights comments in lua files
         -- ["lua"] = {
         --     "comment",

@@ -15,7 +15,7 @@ local function find_insertion_index(buf, win_id)
   if current_line_num <= total_lines then
     local lines_to_search = vim.api.nvim_buf_get_lines(buf, current_line_num - 1, total_lines, false)
     for i, line in ipairs(lines_to_search) do
-      if line:match("^%s*%+") then
+      if line:match("^##%s*%+") then
         -- Found a topic header. Its line number is current_line_num + i - 1
         insert_before_line = current_line_num + i - 1
         break
@@ -49,19 +49,8 @@ end
 function M.setup(opts)
   opts = opts or {}
   if opts.tododir then
-    M.tododir = vim.fn.expand(opts.tododirtodtodoo)
+    M.tododir = vim.fn.expand(opts.tododir)
   end
-
-  --   if not git_timer then
-  --     git_timer = vim.uv.new_timer()
-  --     local timer_callback = vim.schedule_wrap(function()
-  --       vim.notify("Git Sync: Starting pull and push...", vim.log.levels.INFO, { title = "Todo Plugin" })
-  --       vim.fn.system({ "git", "-C", M.tododir, "pull", "--rebase" })
-  --       vim.fn.system({ "git", "-C", M.tododir, "push" })
-  --       vim.notify("Git Sync: Finished.", vim.log.levels.INFO, { title = "Todo Plugin" })
-  --     end)
-  --     git_timer:start(0, 6000000, timer_callback) -- Every hour
-  --   end
 end
 
 --- Synchronizes the todo directory with the remote git repository.
@@ -100,9 +89,109 @@ function M.sync(on_complete)
   })
 end
 
---- Opens today's todo file in a floating window.
-function M.open_today_todo_popup()
-  local date_str = os.date("%m-%d-%Y")
+--- Sets up buffer-local keymaps for the todo popup.
+-- @param buf integer: The buffer handle.
+-- @param win_id integer: The window handle.
+local function setup_keymaps(buf, win_id)
+  -- 't' for append new [t]odo item
+  vim.api.nvim_buf_set_keymap(buf, "n", "t", "", {
+    noremap = true,
+    silent = true,
+    desc = "Append new todo item",
+    callback = function()
+      -- Assuming find_insertion_index is defined elsewhere
+      local insert_idx = find_insertion_index(buf, win_id)
+      local new_line_content = { "- [ ] " }
+      vim.api.nvim_buf_set_lines(buf, insert_idx, insert_idx, false, new_line_content)
+      vim.api.nvim_win_set_cursor(win_id, { insert_idx + 1, 0 })
+      vim.cmd("startinsert!")
+    end,
+  })
+
+  -- 's' for append new [s]ub-todo item
+  vim.api.nvim_buf_set_keymap(buf, "n", "S", "", {
+    noremap = true,
+    silent = true,
+    desc = "Append new sub-todo item",
+    callback = function()
+      -- Assuming find_insertion_index is defined elsewhere
+      local insert_idx = find_insertion_index(buf, win_id)
+      local new_line_content = { "  |- [ ] " }
+      vim.api.nvim_buf_set_lines(buf, insert_idx, insert_idx, false, new_line_content)
+      vim.api.nvim_win_set_cursor(win_id, { insert_idx + 1, 0 })
+      vim.cmd("startinsert!")
+    end,
+  })
+
+  -- 'c' for [c]heck/uncheck todo item
+  vim.api.nvim_buf_set_keymap(buf, "n", "c", "", {
+    noremap = true,
+    silent = true,
+    desc = "Toggle todo item checkbox",
+    callback = function()
+      local cursor_pos = vim.api.nvim_win_get_cursor(win_id)
+      local line_num = cursor_pos[1]
+      local line = vim.api.nvim_buf_get_lines(buf, line_num - 1, line_num, false)[1]
+
+      if line then
+        local new_line
+        if line:match("^%s*|?%-%s*%[ %] ") then
+          new_line = line:gsub("%[ %]", "[x]", 1)
+        elseif line:match("^%s*|?%-%s*%[x%] ") then
+          new_line = line:gsub("%[x%]", "[ ]", 1)
+        end
+        if new_line then
+          vim.api.nvim_buf_set_lines(buf, line_num - 1, line_num, false, { new_line })
+        end
+      end
+    end,
+  })
+
+  -- 'T' for a new [t]opic header
+  vim.api.nvim_buf_set_keymap(buf, "n", "T", "", {
+    noremap = true,
+    silent = true,
+    desc = "Append a new topic header",
+    callback = function()
+      vim.ui.input({ prompt = "Topic: " }, function(topic)
+        if topic and topic:gsub("%s*", "") ~= "" then
+          local formatted_topic = "## +----- " .. topic .. " -----+"
+          local line_count = vim.api.nvim_buf_line_count(buf)
+          vim.api.nvim_buf_set_lines(buf, line_count, -1, false, { "", formatted_topic })
+          vim.api.nvim_buf_set_lines(buf, line_count + 2, -1, false, { "- [ ] " })
+          vim.api.nvim_win_set_cursor(win_id, { line_count + 3, 7 })
+          vim.cmd("startinsert")
+        end
+      end)
+    end,
+  })
+
+  -- '[' and ']' for previous/next day
+  vim.api.nvim_buf_set_keymap(buf, "n", "<leader>]", "", {
+    noremap = true,
+    silent = true,
+    desc = "Next day's todo",
+    callback = function()
+      M.switch_day(buf, win_id, 1)
+    end,
+  })
+
+  vim.api.nvim_buf_set_keymap(buf, "n", "<leader>[", "", {
+    noremap = true,
+    silent = true,
+    desc = "Previous day's todo",
+    callback = function()
+      M.switch_day(buf, win_id, -1)
+    end,
+  })
+
+  vim.keymap.set("n", "q", ":close<CR>", { buffer = buf, silent = true })
+end
+
+--- Loads or creates todo content for a given date.
+---@param date_str string The date in "mm-dd-YYYY" format.
+---@return table, string The file content as a table of lines, and the full filepath.
+local function load_todo_content(date_str)
   local todo_filename = date_str .. ".todo"
   local todo_filepath = M.tododir .. "/" .. todo_filename
 
@@ -129,11 +218,58 @@ function M.open_today_todo_popup()
     -- Split the header string into a table of lines for the buffer
     file_content = vim.split(default_header, "\n")
   end
+  return file_content, todo_filepath
+end
 
-  local buf = vim.api.nvim_create_buf(false, true) -- autocmd_buf (temporary), no_undo
+function M.switch_day(buf, win_id, direction)
+  local current_filepath = vim.api.nvim_buf_get_var(buf, "todo_filepath")
+  if not current_filepath then
+    return
+  end
+
+  local filename = vim.fn.fnamemodify(current_filepath, ":t")
+  local date_str = filename:match("^(%d%d-%d%d-%d%d%d%d)%.todo$")
+  if not date_str then
+    vim.notify("Failed to parse date from filename: " .. filename, vim.log.levels.ERROR, { title = "Todo Plugin" })
+    return
+  end
+
+  local month, day, year = date_str:match("^(%d%d)-(%d%d)-(%d%d%d%d)$")
+  if not (month and day and year) then
+    vim.notify("Invalid date format in filename: " .. filename, vim.log.levels.ERROR, { title = "Todo Plugin" })
+    return
+  end
+  -- month, day, year = tonumber(month), tonumber(day), tonumber(year)
+
+  local current_time = os.time({ year = year, month = month, day = day, hour = 12 })
+  local new_time = current_time + (direction * 24 * 60 * 60)
+  local new_date_str = tostring(os.date("%m-%d-%Y", new_time))
+
+  local file_content, todo_filepath = load_todo_content(new_date_str)
+
+  vim.api.nvim_buf_set_option_value("modifiable", true, { buf = buf })
   vim.api.nvim_buf_set_lines(buf, 0, -1, false, file_content)
+  vim.api.nvim_buf_set_option_value("modifiable", false, { buf = buf })
 
   vim.api.nvim_buf_set_var(buf, "todo_filepath", todo_filepath)
+
+  local new_title
+  if new_date_str == os.date("%m-%d-%Y") then
+    new_title = "Today's Todos"
+  else
+    new_title = new_date_str .. " Todos"
+  end
+
+  vim.api.nvim_win_set_config(win_id, { title = new_title })
+  vim.api.nvim_win_set_cursor(win_id, { 1, 0 })
+end
+
+--- Opens today's todo file in a floating window.
+function M.open_today_todo_popup()
+  local date_str = tostring(os.date("%m-%d-%Y"))
+  local file_content, todo_filepath = load_todo_content(date_str)
+
+  local buf = vim.api.nvim_create_buf(false, true) -- autocmd_buf (temporary), no_undo
 
   -- Calculate reasonable size for the popup
   local width = math.min(vim.o.columns * 0.8, 100)
@@ -155,131 +291,60 @@ function M.open_today_todo_popup()
     title_pos = "center",
   })
 
-  -- Enable line wrapping for the popup window
-  vim.api.nvim_set_option_value("wrap", true, { win = win_id })
+  -- Defer buffer population and setup to avoid race conditions with other plugins.
+  vim.schedule(function()
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, file_content)
 
-  -- Autocommand to save buffer and commit changes on WinLeave and BufDelete
-  vim.api.nvim_create_autocmd({ "BufLeave", "BufDelete" }, {
-    buffer = buf,
-    callback = function()
-      local current_filepath = vim.api.nvim_buf_get_var(buf, "todo_filepath")
-      if current_filepath then
-        local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
-        local out_file = io.open(current_filepath, "w")
-        if out_file then
-          out_file:write(table.concat(lines, "\n"))
-          io.close(out_file)
-          -- vim.notify("Todo file saved: " .. current_filepath, vim.log.levels.INFO, { title = "Todo Plugin" })
+    vim.api.nvim_buf_set_var(buf, "todo_filepath", todo_filepath)
+    vim.api.nvim_set_option_value("filetype", "markdown", { buf = buf })
 
-          -- Git operations after saving the file
-          -- 1. Add the file to the staging area
-          vim.fn.system({ "git", "-C", M.tododir, "add", current_filepath })
+    -- Enable line wrapping for the popup window
+    vim.api.nvim_set_option_value("wrap", true, { win = win_id })
+    vim.api.nvim_set_option_value("linebreak", true, { win = win_id })
 
-          -- 2. Check if there are changes to commit for this file
-          local git_status = vim.fn.system({ "git", "-C", M.tododir, "status", "--porcelain", "--", current_filepath })
-          if git_status and git_status ~= "" then
-            -- 3. Commit the changes with an automatic message
-            local commit_message = "Auto-commit: update for " .. date_str
-            vim.fn.system({ "git", "-C", M.tododir, "commit", "-m", commit_message })
-            -- vim.notify("Changes committed for " .. todo_filename, vim.log.levels.INFO, { title = "Todo Plugin" })
+    -- Autocommand to save buffer and commit changes on WinLeave and BufDelete
+    vim.api.nvim_create_autocmd({ "BufLeave", "BufDelete" }, {
+      buffer = buf,
+      callback = function()
+        local current_filepath = vim.api.nvim_buf_get_var(buf, "todo_filepath")
+        if current_filepath then
+          local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+          local out_file = io.open(current_filepath, "w")
+          if out_file then
+            out_file:write(table.concat(lines, "\n"))
+            io.close(out_file)
+            -- vim.notify("Todo file saved: " .. current_filepath, vim.log.levels.INFO, { title = "Todo Plugin" })
+
+            -- Git operations after saving the file
+            -- 1. Add the file to the staging area
+            vim.fn.system({ "git", "-C", M.tododir, "add", current_filepath })
+
+            -- 2. Check if there are changes to commit for this file
+            local git_status =
+              vim.fn.system({ "git", "-C", M.tododir, "status", "--porcelain", "--", current_filepath })
+            if git_status and git_status ~= "" then
+              -- 3. Commit the changes with an automatic message
+              local filename = vim.fn.fnamemodify(current_filepath, ":t")
+              local date_from_filename = filename:match("^(%d%d-%d%d-%d%d%d%d)%.todo$")
+              local commit_message = "Auto-commit: update for " .. (date_from_filename or "todo")
+              vim.fn.system({ "git", "-C", M.tododir, "commit", "-m", commit_message })
+              -- vim.notify("Changes committed for " .. todo_filename, vim.log.levels.INFO, { title = "Todo Plugin" })
+            end
+          else
+            vim.notify(
+              "Failed to save todo file: " .. current_filepath,
+              vim.log.levels.ERROR,
+              { title = "Todo Plugin" }
+            )
           end
-        else
-          vim.notify("Failed to save todo file: " .. current_filepath, vim.log.levels.ERROR, { title = "Todo Plugin" })
         end
-      end
-    end,
-    once = true, -- Ensure it runs only once per buffer close event
-  })
+      end,
+      once = true, -- Ensure it runs only once per buffer close event
+    })
 
-  -- Set buffer-local keymaps
-  -- 't' for append new [t]odo item
-  vim.api.nvim_buf_set_keymap(buf, "n", "t", "", {
-    noremap = true,
-    silent = true,
-    desc = "Append new todo item",
-    callback = function()
-      local insert_idx = find_insertion_index(buf, win_id)
-      local new_line_content = { "- [ ] " }
-
-      -- Insert the new line at the determined position
-      vim.api.nvim_buf_set_lines(buf, insert_idx, insert_idx, false, new_line_content)
-      local cursor_target_line = insert_idx + 1
-
-      -- Move cursor to new line and enter insert mode at the end of it
-      vim.api.nvim_win_set_cursor(win_id, { cursor_target_line, 0 })
-      vim.cmd("startinsert!")
-    end,
-  })
-
-  -- 's' for append new [s]ub-todo item
-  vim.api.nvim_buf_set_keymap(buf, "n", "s", "", {
-    noremap = true,
-    silent = true,
-    desc = "Append new todo item",
-    callback = function()
-      local insert_idx = find_insertion_index(buf, win_id)
-      local new_line_content = { "  |- [ ] " }
-
-      -- Insert the new line at the determined position
-      vim.api.nvim_buf_set_lines(buf, insert_idx, insert_idx, false, new_line_content)
-      local cursor_target_line = insert_idx + 1
-
-      -- Move cursor to new line and enter insert mode at the end of it
-      vim.api.nvim_win_set_cursor(win_id, { cursor_target_line, 0 })
-      vim.cmd("startinsert!")
-    end,
-  })
-
-  -- 'c' for [c]heck/uncheck todo item
-  vim.api.nvim_buf_set_keymap(buf, "n", "c", "", {
-    noremap = true,
-    silent = true,
-    desc = "Toggle todo item checkbox",
-    callback = function()
-      local cursor_pos = vim.api.nvim_win_get_cursor(win_id)
-      local line_num = cursor_pos[1]
-      local line = vim.api.nvim_buf_get_lines(buf, line_num - 1, line_num, false)[1]
-
-      if line then
-        local new_line
-        if line:match("^%s*|?%-%s*%[ %] ") then
-          new_line = line:gsub("%[ %]", "[x]", 1)
-        elseif line:match("^%s*|?%-%s*%[x%] ") then
-          new_line = line:gsub("%[x%]", "[ ]", 1)
-        end
-
-        if new_line then
-          vim.api.nvim_buf_set_lines(buf, line_num - 1, line_num, false, { new_line })
-        end
-      end
-    end,
-  })
-
-  -- 'T' for a new [t]opic header
-  vim.api.nvim_buf_set_keymap(buf, "n", "T", "", {
-    noremap = true,
-    silent = true,
-    desc = "Append a new topic header",
-    callback = function()
-      vim.ui.input({ prompt = "Topic: " }, function(topic)
-        -- Ensure the user entered something and didn't cancel
-        if topic and topic:gsub("%s*", "") ~= "" then
-          local formatted_topic = "+----- " .. topic .. " -----+"
-          local line_count = vim.api.nvim_buf_line_count(buf)
-          -- Append an empty line for spacing, then the topic
-          vim.api.nvim_buf_set_lines(buf, line_count, -1, false, { "", formatted_topic })
-          -- Optional: move cursor below the new topic and enter insert mode
-          vim.api.nvim_buf_set_lines(buf, line_count + 2, -1, false, { "- [ ] " })
-          vim.api.nvim_win_set_cursor(win_id, { line_count + 3, 7 })
-          vim.cmd("startinsert")
-        end
-      end)
-    end,
-  })
-
-  vim.keymap.set("n", "q", ":close<CR>", { buffer = true, silent = true })
-
-  vim.api.nvim_set_current_win(win_id)
+    -- Set buffer-local keymaps
+    setup_keymaps(buf, win_id)
+  end)
 end
 
 return M
