@@ -28,6 +28,8 @@ vim.keymap.set("n", "<leader>td", function()
   require("custom_plugins.todo").open_today_todo_popup()
 end, { desc = "Open Today's Todos" })
 
+vim.keymap.del("n", "<leader>.")
+
 -- 在可视模式下使用 J 和 K 上下移动选中的代码块
 vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move selected block down", silent = true })
 vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv", { desc = "Move selected block up", silent = true })

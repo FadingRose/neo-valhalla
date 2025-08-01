@@ -49,7 +49,7 @@ end
 function M.setup(opts)
   opts = opts or {}
   if opts.tododir then
-    M.tododir = vim.fn.expand(opts.tododir)
+    M.tododir = vim.fn.expand(opts.tododirtodtodoo)
   end
 
   --   if not git_timer then
@@ -136,7 +136,7 @@ function M.open_today_todo_popup()
   vim.api.nvim_buf_set_var(buf, "todo_filepath", todo_filepath)
 
   -- Calculate reasonable size for the popup
-  local width = math.min(vim.o.columns * 0.8, 80)
+  local width = math.min(vim.o.columns * 0.8, 100)
   local height = math.min(vim.o.lines * 0.8, 30)
 
   local row = math.floor((vim.o.lines - height) / 2)
