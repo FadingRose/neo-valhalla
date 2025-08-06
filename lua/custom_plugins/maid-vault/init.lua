@@ -1,4 +1,4 @@
-local N = {}
+local M = {}
 
 -- Vault directory
 

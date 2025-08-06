@@ -10,6 +10,8 @@ require("custom_plugins.todo").setup({
   tododir = "~/.config/todo/",
 })
 
+require("custom_plugins.sol-import").setup({})
+
 -- now the w and b only move cursor at the same line
 vim.cmd([[
   function! CustomW()
