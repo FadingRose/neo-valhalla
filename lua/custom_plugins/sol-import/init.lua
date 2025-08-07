@@ -89,7 +89,7 @@ function M.setup(opts)
   end
 
   -- Keymap to trigger the import picker
-  vim.keymap.set("n", "<leader>si", function()
+  vim.keymap.set("n", "<leader>ci", function()
     require("custom_plugins.sol-import").pick_imports()
     vim.cmd("LspRestart")
   end, { desc = "Install Solidity dependencies" })
