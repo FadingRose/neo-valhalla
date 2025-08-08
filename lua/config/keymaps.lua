@@ -39,6 +39,8 @@ end, { desc = "Open Todo Files" })
 
 vim.keymap.del("n", "<leader>.")
 
+vim.keymap.set("n", "<leader>sA", function() end)
+
 -- 在可视模式下使用 J 和 K 上下移动选中的代码块
 vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move selected block down", silent = true })
 vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv", { desc = "Move selected block up", silent = true })
@@ -103,13 +105,19 @@ vim.keymap.set("n", "<C-->", function()
   vim.o.guifont = vim.o.guifont:gsub("%d+", size - 1)
 end, { desc = "Decrease font size" })
 
-vim.keymap.set("x", "<leader>wc", 'c\\code{<C-r>"}<Esc>', {
+vim.keymap.set("x", "<leader>cwo", 'c`<C-r>"`<Esc>', {
+  noremap = true,
+  silent = true,
+  desc = "Wrap selection with ``",
+})
+
+vim.keymap.set("x", "<leader>cwc", 'c\\code{<C-r>"}<Esc>', {
   noremap = true,
   silent = true,
   desc = "Wrap selection with \\code{}",
 })
 
-vim.keymap.set("x", "<leader>wC", 'c\\tcode{<C-r>"}<Esc>', {
+vim.keymap.set("x", "<leader>cwC", 'c\\tcode{<C-r>"}<Esc>', {
   noremap = true,
   silent = true,
   desc = "Wrap selection with \\tcode{}",

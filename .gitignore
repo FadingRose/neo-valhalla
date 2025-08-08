@@ -8,3 +8,4 @@ foo.*
 data
 auto_commit.sh
 lazy-lock.json
+/.crush
