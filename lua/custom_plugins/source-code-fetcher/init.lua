@@ -4,6 +4,58 @@ local M = {}
 local API_KEY = "PAITPWREI8XJHYH5C9K7RT6XB1Q9Z38JWJ"
 -- https://api.etherscan.io/v2/api?chainid=146&module=contract&action=getsourcecode&address=0xb2a43445B97cd6A179033788D763B8d0c0487E36&apikey=PAITPWREI8XJHYH5C9K7RT6XB1Q9Z38JWJ
 
+--- Makes an HTTP request, using vim.http if available, otherwise falling back to curl.
+-- @param opts table: must contain url and method.
+-- @param callback function(err, response): response has `status` and `body`.
+local function http_request(opts, callback)
+  -- vim.http was introduced in Neovim 0.10
+  if vim.http and vim.http.easy_request then
+    return vim.http.easy_request(opts, callback)
+  end
+
+  -- Fallback to curl for older Neovim versions
+  local stdout_parts = {}
+  local stderr_parts = {}
+  local cmd = { "curl", "-s", "-S", "-L", "-w", "\n%{http_code}", "-X", opts.method or "GET", opts.url }
+
+  vim.fn.jobstart(cmd, {
+    on_stdout = function(_, data)
+      if data then
+        table.insert(stdout_parts, table.concat(data))
+      end
+    end,
+    on_stderr = function(_, data)
+      if data then
+        table.insert(stderr_parts, table.concat(data))
+      end
+    end,
+    on_exit = function(_, code)
+      if code ~= 0 then
+        return callback("curl exited with code " .. code .. ": " .. table.concat(stderr_parts), nil)
+      end
+
+      local stdout = table.concat(stdout_parts)
+      -- Use a non-greedy match to handle newlines in the body
+      local body, status_code_str = stdout:match("^(.-)\n(%d+)$")
+
+      if not status_code_str then
+        -- Handle cases where body is empty and only status code is in stdout
+        if stdout:match("^%d+$") then
+          body = ""
+          status_code_str = stdout
+        else
+          return callback("Could not parse status code from curl output.", nil)
+        end
+      end
+
+      callback(nil, {
+        status = tonumber(status_code_str),
+        body = body,
+      })
+    end,
+  })
+end
+
 local function fetch_and_display_source_code(chain, address)
   local url = string.format(
     "https://api.etherscan.io/v2/api?chainid=%s&module=contract&action=getsourcecode&address=%s&apikey=%s",
@@ -96,7 +148,7 @@ function M.get_chains(callback)
 
   local url = "https://api.etherscan.io/v2/chainlist"
 
-  vim.http.easy_request({ url = url, method = "GET" }, function(err, response)
+  http_request({ url = url, method = "GET" }, function(err, response)
     if err then
       return callback("Request error: " .. vim.inspect(err))
     end
