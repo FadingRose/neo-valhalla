@@ -12,6 +12,8 @@ require("custom_plugins.todo").setup({
 
 require("custom_plugins.sol-import").setup({})
 
+require("custom_plugins.source-code-fetcher").setup({})
+
 -- now the w and b only move cursor at the same line
 vim.cmd([[
   function! CustomW()
