@@ -3,7 +3,9 @@ local M = {}
 
 local json_decode = vim.json and vim.json.decode or vim.fn.json_decode
 
-local API_KEY = "PAITPWREI8XJHYH5C9K7RT6XB1Q9Z38JWJ"
+local cached_chains = nil
+
+local API_KEY = os.getenv("ETHERSCAN_API_KEY")
 -- https://api.etherscan.io/v2/api?chainid=146&module=contract&action=getsourcecode&address=0xb2a43445B97cd6A179033788D763B8d0c0487E36&apikey=PAITPWREI8XJHYH5C9K7RT6XB1Q9Z38JWJ
 
 --- Makes an HTTP request, using vim.http if available, otherwise falling back to curl.
@@ -19,8 +21,6 @@ local function http_request(opts, callback)
   local stdout_parts = {}
   local stderr_parts = {}
   local cmd = { "curl", "-s", "-S", "-L", "-X", opts.method or "GET", opts.url }
-
-  vim.notify("Running command: " .. table.concat(cmd, " "), vim.log.levels.INFO)
 
   vim.fn.jobstart(cmd, {
     on_stdout = function(_, data)
@@ -53,7 +53,7 @@ local function http_request(opts, callback)
   })
 end
 
-local function fetch_and_display_source_code(chain, address)
+local function fetch_and_save_source_code(chain, address)
   local url = string.format(
     "https://api.etherscan.io/v2/api?chainid=%s&module=contract&action=getsourcecode&address=%s&apikey=%s",
     chain.chainid,
@@ -109,10 +109,6 @@ local function fetch_and_display_source_code(chain, address)
           vim.fn.writefile(vim.split(file_data.content, "\n", nil), full_path)
         end
       end
-
-      vim.notify("Project saved to " .. base_dir, vim.log.levels.INFO)
-      -- Open the directory in netrw or a similar file explorer plugin
-      vim.cmd("vsplit " .. vim.fn.fnameescape(base_dir))
     else
       -- Single file (either Solidity, or a simple JSON ABI)
       local dir = "verified_contract"
@@ -163,7 +159,7 @@ function M.fetch_contract()
         if not address or address == "" then
           return
         end
-        fetch_and_display_source_code(selected_chain, address)
+        fetch_and_save_source_code(selected_chain, address)
       end)
     end)
   end)
@@ -177,6 +173,10 @@ function M.get_chains(callback)
   vim.validate({
     callback = { callback, "function" },
   })
+
+  if cached_chains then
+    return callback(nil, cached_chains)
+  end
 
   local url = "https://api.etherscan.io/v2/chainlist"
 
@@ -195,6 +195,7 @@ function M.get_chains(callback)
       return callback("Failed to parse JSON or invalid response format")
     end
 
+    cached_chains = data.result
     callback(nil, data.result)
   end)
 end
