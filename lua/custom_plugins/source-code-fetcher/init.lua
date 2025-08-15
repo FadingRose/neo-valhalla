@@ -1,6 +1,8 @@
 local M = {}
 -- https://api.etherscan.io/v2/chainlist
 
+local json_decode = vim.json and vim.json.decode or vim.fn.json_decode
+
 local API_KEY = "PAITPWREI8XJHYH5C9K7RT6XB1Q9Z38JWJ"
 -- https://api.etherscan.io/v2/api?chainid=146&module=contract&action=getsourcecode&address=0xb2a43445B97cd6A179033788D763B8d0c0487E36&apikey=PAITPWREI8XJHYH5C9K7RT6XB1Q9Z38JWJ
 
@@ -16,37 +18,32 @@ local function http_request(opts, callback)
   -- Fallback to curl for older Neovim versions
   local stdout_parts = {}
   local stderr_parts = {}
-  local cmd = { "curl", "-s", "-S", "-L", "-w", "\n%{http_code}", "-X", opts.method or "GET", opts.url }
+  local cmd = { "curl", "-s", "-S", "-L", "-X", opts.method or "GET", opts.url }
+
+  vim.notify("Running command: " .. table.concat(cmd, " "), vim.log.levels.INFO)
 
   vim.fn.jobstart(cmd, {
     on_stdout = function(_, data)
       if data then
-        table.insert(stdout_parts, table.concat(data))
+        for _, line in ipairs(data) do
+          table.insert(stdout_parts, line)
+        end
       end
     end,
     on_stderr = function(_, data)
       if data then
-        table.insert(stderr_parts, table.concat(data))
+        for _, line in ipairs(data) do
+          table.insert(stderr_parts, line)
+        end
       end
     end,
     on_exit = function(_, code)
       if code ~= 0 then
-        return callback("curl exited with code " .. code .. ": " .. table.concat(stderr_parts), nil)
+        return callback("curl exited with code " .. code .. ": " .. table.concat(stderr_parts, "\n"), nil)
       end
 
-      local stdout = table.concat(stdout_parts)
-      -- Use a non-greedy match to handle newlines in the body
-      local body, status_code_str = stdout:match("^(.-)\n(%d+)$")
-
-      if not status_code_str then
-        -- Handle cases where body is empty and only status code is in stdout
-        if stdout:match("^%d+$") then
-          body = ""
-          status_code_str = stdout
-        else
-          return callback("Could not parse status code from curl output.", nil)
-        end
-      end
+      local body = table.concat(stdout_parts, "\n")
+      local status_code_str = 200
 
       callback(nil, {
         status = tonumber(status_code_str),
@@ -65,15 +62,18 @@ local function fetch_and_display_source_code(chain, address)
   )
 
   vim.notify("Fetching contract source for " .. address)
-  vim.http.easy_request({ url = url, method = "GET" }, function(err, response)
+  http_request({ url = url, method = "GET" }, function(err, response)
     if err or response.status ~= 200 then
       vim.notify("Failed to fetch contract: " .. (err or response.status), vim.log.levels.ERROR)
       return
     end
 
-    local ok, data = pcall(vim.fn.json_decode, response.body)
+    local ok, data = pcall(json_decode, response.body)
     if not ok or type(data) ~= "table" or not data.result or data.status ~= "1" then
       local message = (data and type(data.result) == "string") and data.result or "Invalid response from API"
+      if type(data) ~= "table" then
+        message = "Failed to parse JSON response: " .. vim.inspect(data)
+      end
       vim.notify("API Error: " .. message, vim.log.levels.ERROR)
       return
     end
@@ -87,26 +87,58 @@ local function fetch_and_display_source_code(chain, address)
       return
     end
 
-    -- Create a new buffer and open it in a vertical split
-    vim.cmd("vsplit")
-    local buf = vim.api.nvim_create_buf(false, true)
-    vim.api.nvim_win_set_buf(0, buf)
-    vim.api.nvim_buf_set_name(buf, contract_name .. ".sol")
-
-    -- The source code might be a single string or a JSON object for multi-file sources
-    local final_code = source_code
-    local is_json, parsed_json = pcall(vim.fn.json_decode, source_code)
-    if is_json and type(parsed_json) == "table" then
-      -- For simplicity, we just pretty-print the JSON.
-      -- A more advanced implementation would handle the file structure.
-      final_code = vim.fn.json_encode(parsed_json)
-      vim.bo[buf].filetype = "json"
-    else
-      vim.bo[buf].filetype = "solidity"
+    -- Handle double-curly braces JSON-like format by stripping the outer layer
+    if string.sub(source_code, 1, 2) == "{{" and string.sub(source_code, -2) == "}}" then
+      source_code = string.sub(source_code, 2, -2)
     end
 
-    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(final_code, "\n"))
-    vim.notify("Contract loaded successfully!")
+    local is_json, parsed_json = pcall(json_decode, source_code)
+
+    if is_json and type(parsed_json) == "table" and parsed_json.sources then
+      -- Multi-file project structure
+      local base_dir = "verified_contract/" .. contract_name .. "_" .. address
+      vim.notify("Multi-file contract detected. Saving to " .. vim.fn.fnameescape(base_dir))
+
+      for file_path, file_data in pairs(parsed_json.sources) do
+        if type(file_data) == "table" and file_data.content then
+          local full_path = vim.fn.fnamemodify(base_dir .. "/" .. file_path, ":p")
+          local dir = vim.fn.fnamemodify(full_path, ":h")
+          if vim.fn.isdirectory(dir) == 0 then
+            vim.fn.mkdir(dir, "p")
+          end
+          vim.fn.writefile(vim.split(file_data.content, "\n", nil), full_path)
+        end
+      end
+
+      vim.notify("Project saved to " .. base_dir, vim.log.levels.INFO)
+      -- Open the directory in netrw or a similar file explorer plugin
+      vim.cmd("vsplit " .. vim.fn.fnameescape(base_dir))
+    else
+      -- Single file (either Solidity, or a simple JSON ABI)
+      local dir = "verified_contract"
+      if vim.fn.isdirectory(dir) == 0 then
+        vim.fn.mkdir(dir, "p")
+      end
+
+      local final_code = source_code
+      local filename = contract_name .. "_" .. address .. ".sol"
+      local filetype = "solidity"
+
+      if is_json and type(parsed_json) == "table" then
+        -- It's some other JSON format, like an ABI. Prettify it.
+        final_code = vim.fn.json_encode(parsed_json)
+        filename = contract_name .. "_" .. address .. ".json"
+        filetype = "json"
+      end
+
+      local file_path = vim.fn.fnameescape(dir .. "/" .. filename)
+
+      vim.cmd("vsplit " .. file_path)
+      vim.bo.filetype = filetype
+      vim.api.nvim_buf_set_lines(0, 0, -1, false, vim.split(final_code, "\n"))
+      vim.cmd("write")
+      vim.notify("Contract saved to " .. file_path)
+    end
   end)
 end
 
