@@ -122,3 +122,6 @@ vim.keymap.set("x", "<leader>cwC", 'c\\tcode{<C-r>"}<Esc>', {
   silent = true,
   desc = "Wrap selection with \\tcode{}",
 })
+
+-- Lspsaga outline
+vim.keymap.set("n", "<leader>co", "<cmd>Lspsaga outline<CR>", { desc = "Open Lspsaga Outline" })

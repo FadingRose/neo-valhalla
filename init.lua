@@ -14,6 +14,9 @@ require("custom_plugins.sol-import").setup({})
 
 require("custom_plugins.source-code-fetcher").setup({})
 
+-- grammar check
+require("grammar-guard").init()
+
 -- now the w and b only move cursor at the same line
 vim.cmd([[
   function! CustomW()
