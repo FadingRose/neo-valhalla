@@ -126,6 +126,48 @@ return {
           },
           {
             action = function()
+              local original_dir = vim.fn.getcwd() -- Store original directory
+              vim.fn.chdir(vim.fn.expand("~/MasterMaid's Obsidian Vaults/"))
+
+              local function select_and_open(current_path)
+                vim.ui.select(
+                  vim.fn.split(vim.fn.system("ls -1F " .. vim.fn.escape(current_path, " ") .. " | grep '/' | sed 's/\\///'"), "\n"), -- Only show directories, exclude .source
+                  {
+                    prompt = "Select an audit folder:",
+                    format_item = function(item)
+                      return item
+                    end,
+                  },
+                  function(choice)
+                    if choice then
+                      local new_path = current_path .. "/" .. choice
+                      vim.fn.chdir(new_path)
+                      -- Check if it's a git repository
+                      if vim.fn.system("git -C " .. vim.fn.escape(new_path, " ") .. " rev-parse --is-inside-work-tree 2>/dev/null") == "true\n" then
+                        require("telescope.builtin").find_files({
+                            cwd = new_path,
+                            find_command = { "git", "ls-files", "--", "*.sol" }
+                        })
+                      else
+                        -- If not a git repo, recursively select from subdirectories
+                        select_and_open(new_path)
+                      end
+                    else
+                      -- If no choice, go back to original directory or previous level
+                      vim.fn.chdir(original_dir) -- Or navigate up one level if implementing back
+                    end
+                  end
+                )
+              end
+
+              select_and_open(vim.fn.getcwd()) -- Start the selection process from the current directory
+            end,
+            desc = " Vaults",
+            icon = "󰂻 ",
+            key = "v"
+          },
+          {
+            action = function()
               -- require("custom_plugins.todo").open_today_todo_popup()
               vim.fn.chdir(vim.fn.expand("~/.config/todo/"))
               require("telescope.builtin").find_files()
