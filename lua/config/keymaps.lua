@@ -125,3 +125,14 @@ vim.keymap.set("x", "<leader>cwC", 'c\\tcode{<C-r>"}<Esc>', {
 
 -- Lspsaga outline
 vim.keymap.set("n", "<leader>co", "<cmd>Lspsaga outline<CR>", { desc = "Open Lspsaga Outline" })
+
+-- hint file
+vim.keymap.set("n", "<leader>ch", function()
+  local current_file = vim.api.nvim_buf_get_name(0)
+  if current_file == "" then
+    print("No file is currently open.")
+    return
+  end
+  local hint_file = vim.fn.fnamemodify(current_file, ":r") .. ".hint.md"
+  vim.cmd("vsplit" .. hint_file)
+end, { desc = "Open/Create Hint File" })
