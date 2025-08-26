@@ -68,6 +68,9 @@ vim.cmd.chdir("~")
 
 vim.o.background = "dark"
 
+-- VimTeX settings
+vim.g.vimtex_complete_enabled = 1 -- enable autocomplete for .bib ref
+
 -- local theme = require("last-color").recall() or "carbonfox"
 -- vim.cmd.colorscheme(theme)
 

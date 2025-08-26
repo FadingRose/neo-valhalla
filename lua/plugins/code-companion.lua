@@ -105,6 +105,143 @@ return {
           },
         },
       },
+
+      ["Paper Trans En -> Improve"] = {
+        strategy = "chat",
+        description = "translate to academic English and improve stattements",
+        opts = {
+          index = 5,
+          is_default = true,
+          is_slash_cmd = false,
+          modes = { "v" },
+          short_name = "translate to academic english and improve representation",
+          auto_submit = true,
+          user_prompt = false,
+          stop_context_insertion = true,
+          adapter = {
+            name = "openrouter_pro",
+            model = "google/gemini-2.5-pro-preview",
+          },
+        },
+        prompts = {
+          {
+            role = "system",
+            content = [[
+*Task: Translate academic Chinese text into formal English, focusing on smart contract/blockchain domain.*
+
+**Instructions:**  
+1. **Tone & Style:**  
+   - Maintain rigorous academic tone (passive voice where appropriate, no colloquialisms).  
+   - Prioritize readability for NLP/Computer Science audiences.  
+
+2. **Terminology Handling:**  
+   - Core terms: Keep "smart contract", "Gas", "EVM" etc. untranslated.  
+   - 专业短语: Use IEEE/ACM conventional translations (e.g., "共识机制" → "consensus mechanism", "零知识证明" → "zero-knowledge proof").  
+   - 首次出现缩写: Full term + acronym in parentheses (e.g., "去中心化应用 (Decentralized Application, DApp)").
+
+3. **Technical Accuracy:**  
+   - Verify translations against Ethereum Yellow Paper/ISO TC 307 standards.  
+   - Critical terms: Cross-check with "Mastering Ethereum" (O'Reilly) glossary.  
+
+4. **Structural Cues:**  
+   - Retain original section numbering (e.g., "3.2 安全性分析" → "3.2 Security Analysis").  
+   - Process LaTeX/math expressions without translation.  
+
+5. **Contextual Requests:**  
+   - [附加说明] For ambiguous terms, provide 2-3 candidate translations with RFC2119-style priority (MUST/SHOULD/MAY).  
+
+**Example Input:**  
+"在智能合约的漏洞检测中，重入攻击是最危险的威胁之一，需通过形式化验证确保状态一致性。"  
+
+**Expected Output:**  
+"In smart contract vulnerability detection, reentrancy attacks rank among the most critical threats, necessitating formal verification to ensure state consistency."  
+            ]],
+            opts = {
+              visible = false,
+            },
+          },
+          {
+            role = "user",
+            content = function(context)
+              local input = require("codecompanion.helpers.actions").get_code(context.start_line, context.end_line)
+
+              return string.format(
+                [[
+
+  ---
+  %s
+  ---
+  ]],
+                input
+              )
+            end,
+            opts = {
+              contains_code = false,
+            },
+          },
+        },
+      },
+
+      ["Markdown -> LaTeX"] = {
+        strategy = "chat",
+        description = "Convert Markdown to LaTeX",
+        opts = {
+          index = 6,
+          is_default = false,
+          is_slash_cmd = false,
+          modes = { "v" },
+          short_name = "markdown to latex",
+          auto_submit = true,
+          user_prompt = false,
+          stop_context_insertion = true,
+          adapter = {
+            name = "openrouter_flash",
+            model = "google/gemini-2.5-flash",
+          },
+        },
+        prompts = {
+          {
+            role = "system",
+            content = [[
+              Convert the following Markdown content into properly formatted LaTeX. Ensure that:
+              1. Headings (`#`, `##`, etc.) are converted to LaTeX sectioning commands (`\section{}`, `\subsection{}`, etc.).
+              2. Lists (both ordered and unordered) are correctly translated to LaTeX `itemize` or `enumerate` environments.
+              3. Inline code (`code`) uses `\texttt{}`.
+              4. Code blocks (```) are wrapped in a `verbatim` or `lstlisting` environment.
+              5. Bold (**text**) becomes `\textbf{text}` and italic (*text*) becomes `\textit{text}`.
+              6. Links ([text](url)) become `\href{url}{text}`.
+              7. Tables are converted to LaTeX `tabular` environments.
+              8. Math expressions (inline `$...$` or display `$$...$$`) are preserved as-is or properly escaped.
+            ]],
+            opts = {
+              visible = false,
+            },
+          },
+          {
+            role = "user",
+            content = function(context)
+              local input = require("codecompanion.helpers.actions").get_code(context.start_line, context.end_line)
+
+              return string.format(
+                [[ Please handle content in buffer %d :
+
+  ```%s
+  %s
+  ```
+
+  ]],
+                context.bufnr,
+                context.filetype,
+                input
+              )
+            end,
+            opts = {
+              contains_code = true,
+            },
+          },
+        },
+      },
+
       ["Trans En -> Improve"] = {
         strategy = "chat",
         description = "translate to English and improve stattements",
