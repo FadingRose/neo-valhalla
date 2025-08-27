@@ -195,36 +195,97 @@ vim.keymap.set("n", "<leader>cH", function()
 end, { desc = "Open hint file (read only) and Lspsaga outline" })
 
 -- Code yank
-vim.keymap.set("x", "<leader>cy", function()
-  -- Get the line numbers for the start and end of the last visual selection.
+-- vim.keymap.set("x", "<leader>cy", function()
+--   -- Get the line numbers for the start and end of the last visual selection.
+--   local end_line = vim.fn.line("'>")
+--   local start_line = vim.fn.line("'<")
+--
+--   -- Re-select the last visual area and yank it.
+--   vim.cmd("normal! gvy")
+--   local selection = vim.fn.getreg('"')
+--
+--   -- Get buffer metadata.
+--   local filename = vim.fn.expand("%:t")
+--   local lang = vim.bo.filetype
+--
+--   if filename == "" then
+--     filename = "untitled"
+--   end
+--   if lang == "" then
+--     lang = "text"
+--   end
+--
+--   -- Format the line-range string.
+--   local line_range
+--   if start_line == end_line then
+--     line_range = start_line
+--   else
+--     line_range = string.format("%d-%d", start_line, end_line)
+--   end
+--
+--   -- Prepend line numbers to the selection.
+--   local lines = vim.fn.split(selection, "\n")
+--
+--   if #lines > 0 and lines[#lines] == "" then
+--     table.remove(lines)
+--   end
+--
+--   local numbered_lines = {}
+--   local max_line_width = #tostring(end_line)
+--   for i, line in ipairs(lines) do
+--     local line_num = start_line + i - 1
+--     local formatted_line = string.format("%" .. max_line_width .. "d|  %s", line_num, line)
+--     table.insert(numbered_lines, formatted_line)
+--   end
+--   local numbered_selection = table.concat(numbered_lines, "\n")
+--
+--   -- Construct the content with the new header including line numbers.
+--   local header = string.format("/// %s:%s", filename, line_range)
+--   local content = string.format("```%s\n %s\n%s\n```", lang, header, numbered_selection)
+--
+--   -- Set the system clipboard and show a notification.
+--   vim.fn.setreg("+", content)
+--   vim.fn.setreg("*", content) -- For Linux systems using the primary selection
+--   vim.fn.setreg("", content) -- Also set the default register
+--   vim.notify("Copied to clipboard with context", vim.log.levels.INFO, { title = "Code Yank" })
+-- end, { desc = "Yank code with file, language, and line number context" })
+
+-- 此函数包含处理已拉取文本的核心逻辑
+local function yank_with_context()
+  -- 2. 从寄存器中提取 yank 的内容
+  local selection = vim.fn.getreg('"')
+
+  -- 从 '< 和 '> 标记中获取行号，这些标记是由 yank 操作设置的
   local start_line = vim.fn.line("'<")
   local end_line = vim.fn.line("'>")
 
-  -- Re-select the last visual area and yank it.
-  vim.cmd("normal! gvy")
-  local selection = vim.fn.getreg('"')
-
-  -- Get buffer metadata.
+  -- 3. 处理 content
+  -- 获取缓冲区元数据
   local filename = vim.fn.expand("%:t")
-  local lang = vim.bo.filetype
-
   if filename == "" then
     filename = "untitled"
   end
+
+  local lang = vim.bo.filetype
   if lang == "" then
     lang = "text"
   end
 
-  -- Format the line-range string.
+  -- 格式化行号范围字符串
   local line_range
   if start_line == end_line then
-    line_range = start_line
+    line_range = tostring(start_line)
   else
     line_range = string.format("%d-%d", start_line, end_line)
   end
 
-  -- Prepend line numbers to the selection.
+  -- 为选中区域的每一行添加行号
   local lines = vim.fn.split(selection, "\n")
+
+  if #lines > 0 and lines[#lines] == "" then
+    table.remove(lines)
+  end
+
   local numbered_lines = {}
   local max_line_width = #tostring(end_line)
   for i, line in ipairs(lines) do
@@ -234,16 +295,26 @@ vim.keymap.set("x", "<leader>cy", function()
   end
   local numbered_selection = table.concat(numbered_lines, "\n")
 
-  -- Construct the content with the new header including line numbers.
+  -- 构建包含上下文的最终内容
   local header = string.format("/// %s:%s", filename, line_range)
   local content = string.format("```%s\n %s\n%s\n```", lang, header, numbered_selection)
 
-  -- Set the system clipboard and show a notification.
+  -- 4. 写回寄存器
   vim.fn.setreg("+", content)
-  vim.fn.setreg("*", content) -- For Linux systems using the primary selection
-  vim.fn.setreg("", content) -- Also set the default register
+  vim.fn.setreg("*", content)
+  vim.fn.setreg('"', content)
   vim.notify("Copied to clipboard with context", vim.log.levels.INFO, { title = "Code Yank" })
-end, { desc = "Yank code with file, language, and line number context" })
+end
+
+-- 将本地函数赋值给一个全局变量，以便映射可以调用它
+_G.yank_with_context_for_mapping = yank_with_context
+
+-- 1. 先 yank 选中的部分，然后调用我们的处理函数
+vim.keymap.set("x", "<leader>cy", "y<Cmd>lua _G.yank_with_context_for_mapping()<CR>", {
+  noremap = true,
+  silent = true,
+  desc = "Yank code with file, language, and line number context",
+})
 
 -- Code Mark
 -- vim.keymap.set("x", "<leader>cm", function()
