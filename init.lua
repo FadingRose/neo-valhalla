@@ -5,17 +5,14 @@ vim.opt.signcolumn = "yes"
 
 require("config.lsp")
 
--- todo
-require("custom_plugins.todo").setup({
-  tododir = "~/.config/todo/",
-})
-
 require("custom_plugins.sol-import").setup({})
 
 require("custom_plugins.source-code-fetcher").setup({})
 
 -- grammar check
 require("grammar-guard").init()
+
+require("custom_plugins.audit-toolkit").setup({})
 
 -- now the w and b only move cursor at the same line
 vim.cmd([[

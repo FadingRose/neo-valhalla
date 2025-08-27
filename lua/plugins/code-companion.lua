@@ -6,7 +6,6 @@ return {
     "nvim-treesitter/nvim-treesitter",
     "ravitemer/codecompanion-history.nvim",
   },
-
   opts = {
 
     show_defaults = false,

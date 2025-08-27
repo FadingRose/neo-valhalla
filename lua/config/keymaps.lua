@@ -2,18 +2,18 @@
 -- Default keymaps that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/keymaps.lua
 -- Add any additional keymaps here
 
-vim.keymap.set("n", "<leader>td", function()
-  require("custom_plugins.todo").open_today_todo_popup()
-end, { desc = "Open Today's Todos" })
+-- vim.keymap.set("n", "<leader>td", function()
+--   require("custom_plugins.todo").open_today_todo_popup()
+-- end, { desc = "Open Today's Todos" })
 
-vim.keymap.set("n", "<leader>tl", function()
-  require("telescope.builtin").find_files({
-    prompt_title = "Todo Files",
-    cwd = require("custom_plugins.todo").tododir,
-    hidden = true, -- Show hidden files
-    find_command = { "rg", "--files", "--hidden", "--glob", "!*.git" }, -- Exclude .git directory
-  })
-end, { desc = "Open Todo Files" })
+-- vim.keymap.set("n", "<leader>tl", function()
+--   require("telescope.builtin").find_files({
+--     prompt_title = "Todo Files",
+--     cwd = require("custom_plugins.todo").tododir,
+--     hidden = true, -- Show hidden files
+--     find_command = { "rg", "--files", "--hidden", "--glob", "!*.git" }, -- Exclude .git directory
+--   })
+-- end, { desc = "Open Todo Files" })
 
 vim.keymap.del("n", "<leader>.")
 
