@@ -53,8 +53,8 @@ if vim.g.neovide then
   -- Cursor settings
   vim.g.neovide_cursor_vfx_mode = "pixiedust" -- Cursor effect (options: "railgun", "torpedo", "pixiedust", "sonicboom", "ripple", "wireframe")
   vim.g.neovide_cursor_vfx_opacity = 200.0 -- Cursor effect opacity
-  vim.g.neovide_cursor_vfx_particle_density = 10.0 -- Particle density for cursor effect
-  vim.g.neovide_cursor_vfx_particle_lifetime = 1.2 -- Particle lifetime for cursor effect
+  vim.g.neovide_cursor_vfx_particle_density = 5 -- Particle density for cursor effect
+  vim.g.neovide_cursor_vfx_particle_lifetime = 0.5 -- Particle lifetime for cursor effect
   vim.g.neovide_cursor_animate_in_insert_mode = true
 
   -- Performance settings

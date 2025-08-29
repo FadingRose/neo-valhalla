@@ -7,6 +7,14 @@ return {
     "ravitemer/codecompanion-history.nvim",
   },
   opts = {
+    keys = {
+      {
+        "<Leader>A",
+        "<cmd>CodeCompanionChat Toggle<CR>",
+        desc = "Toggle a chat buffer",
+        mode = { "n", "v" },
+      },
+    },
 
     show_defaults = false,
 

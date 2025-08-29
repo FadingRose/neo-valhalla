@@ -2,6 +2,8 @@ local M = {}
 
 local separator = package.config:sub(1, 1)
 
+local scope_cache = nil
+
 local dir_root = function()
   local git_dir = vim.fn.finddir(".git", vim.fn.getcwd() .. ";")
 
@@ -19,28 +21,12 @@ local auditor_root = function()
   return root .. separator .. ".auditor"
 end
 
-local scope_cache = nil
-
 function M.setup(opts)
   opts = opts or {}
-  vim.keymap.set("n", "<D-a>sl", function()
-    local scope = M.get_scope()
-    if not scope then
-      print("No scope information available.")
-      return
-    end
+  M.hint = require("custom_plugins.audit-toolkit.hint")
+  M.keymaps = require("custom_plugins.audit-toolkit.keymaps")
 
-    local includes = M.get_include_paths()
-    if #includes == 0 then
-      print("No 'include' paths found in scope.")
-      return
-    end
-
-    print("Audit Scope 'include' Paths:")
-    for _, path in ipairs(includes) do
-      print("- " .. path)
-    end
-  end, { desc = "List Audit Scope" })
+  M.keymaps.setup(M)
 end
 
 function M.add_scope()
