@@ -172,3 +172,11 @@ vim.keymap.set("x", "<leader>cy", "y<Cmd>lua _G.yank_with_context_for_mapping()<
 
 -- Code ignore comment
 vim.keymap.set("x", "<leader>cd", "di //...<Esc>", { desc = "Comment selection with //" })
+
+-- Copy current file path to clipboard
+vim.api.nvim_set_keymap(
+  "n",
+  "<leader>bc",
+  ':let @+=expand("%:p")<CR>',
+  { noremap = true, silent = true, desc = "Copy current file path to clipboard" }
+)
