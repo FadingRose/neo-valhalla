@@ -61,6 +61,8 @@ if vim.g.neovide then
   vim.g.neovide_refresh_rate = 150 -- Refresh rate (higher values for smoother animation)
 
   vim.g.neovide_hide_mouse_when_typing = true -- Hide mouse cursor when typing
+
+  vim.o.linespace = 10
 end
 
 vim.o.autochdir = true
