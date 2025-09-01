@@ -14,7 +14,7 @@ function M.setup(plugin)
     end
   end, { desc = "List Audit Scope" })
 
-  vim.keymap.set("n", "<D-a>s", plugin.hint.live_grep_hints, { desc = "Grep in Hint files" })
+  vim.keymap.set("n", "<leader>cL", plugin.hint.live_grep_hints, { desc = "Grep in Hint files" })
 
   vim.keymap.set("n", "<leader>ch", plugin.hint.open_in_split, { desc = "打开 Hint 文件和 Lspsaga outline" })
 

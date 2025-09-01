@@ -555,6 +555,25 @@ return {
           },
         })
       end,
+      iflow = function()
+        return require("codecompanion.adapters").extend("openai_compatible", {
+          env = {
+            url = "https://apis.iflow.cn/v1",
+            api_key = "cmd:echo $IFLOW_API_KEY",
+            chat_url = "/chat/completions",
+          },
+          schema = {
+            model = {
+              default = "qwen3-coder",
+              choices = {
+                "deepseek-v3.1",
+                "qwen3-coder",
+                "kimi-k2",
+              },
+            },
+          },
+        })
+      end,
 
       openrouter_pro = function()
         return require("codecompanion.adapters").extend("openai_compatible", {
@@ -667,9 +686,9 @@ return {
           auto_generate_title = true,
           title_generation_opts = {
             ---Adapter for generating titles (defaults to current chat adapter)
-            adapter = "openrouter_flash", -- "copilot"
+            adapter = "iflow", -- "copilot"
             ---Model for generating titles (defaults to current chat model)
-            model = "google/gemini-2.5-flash-lite-preview-06-17", -- "gpt-4o"
+            model = "qwen3-coder", -- "gpt-4o"
             ---Number of user prompts after which to refresh the title (0 to disable)
             refresh_every_n_prompts = 3, -- e.g., 3 to refresh after every 3rd user prompt
             ---Maximum number of times to refresh the title (default: 3)
