@@ -9,6 +9,8 @@ require("custom_plugins.sol-import").setup({})
 
 require("custom_plugins.source-code-fetcher").setup({})
 
+require("custom_plugins.local-variable-highlighter").setup()
+
 -- grammar check
 require("grammar-guard").init()
 
