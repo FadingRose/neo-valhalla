@@ -43,6 +43,41 @@ local function define_hl_groups()
   state.available_hl_groups = vim.deepcopy(state.all_hl_groups)
 end
 
+-- 高亮视觉模式下选择的文本
+function M.highlight_visual_selection()
+  local start_pos = vim.fn.getpos("'<")
+  local end_pos = vim.fn.getpos("'>")
+  local start_line_num, start_col = start_pos[2], start_pos[3]
+  local end_line_num, end_col = end_pos[2], end_pos[3]
+
+  if start_line_num ~= end_line_num then
+    vim.notify("不支持多行高亮。", vim.log.levels.WARN)
+    return
+  end
+
+  local line = vim.api.nvim_buf_get_lines(0, start_line_num - 1, start_line_num, false)[1]
+  if not line then
+    return
+  end
+  local selection = string.sub(line, start_col, end_col)
+
+  if selection == "" or state.highlighted_words[selection] then
+    return
+  end
+
+  local hl_group = table.remove(state.available_hl_groups, 1)
+  if not hl_group then
+    vim.notify("No more highlight groups available.", vim.log.levels.WARN)
+    return
+  end
+
+  -- 使用 '\\V' 来确保按字面意思匹配, 并转义特殊字符
+  local pattern = [[\V]] .. vim.fn.escape(selection, [[\ ]])
+  local match_id = vim.fn.matchadd(hl_group, pattern, 100)
+
+  state.highlighted_words[selection] = { match_id = match_id, hl_group = hl_group }
+end
+
 -- 高亮光标下的单词
 function M.highlight_word_under_cursor()
   local word = vim.fn.expand("<cword>")
@@ -104,6 +139,7 @@ function M.setup()
   })
 
   vim.keymap.set("n", "<leader>hh", M.highlight_word_under_cursor, { silent = true, desc = "高亮光标下的单词" })
+  vim.keymap.set("v", "<leader>hh", M.highlight_visual_selection, { silent = true, desc = "高亮选中的文本" })
   vim.keymap.set(
     "n",
     "<leader>hc",
