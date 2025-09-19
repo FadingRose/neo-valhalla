@@ -104,6 +104,17 @@ vim.keymap.set("x", "<leader>cwC", 'c\\tcode{<C-r>"}<Esc>', {
   desc = "Wrap selection with \\tcode{}",
 })
 
+vim.keymap.set("x", "<leader>cwb", 'c\\textbf{<C-r>"}<Esc>', {
+  noremap = true,
+  silent = true,
+  desc = "Wrap selection with \\textbf{}",
+})
+
+vim.keymap.set("x", "<leader>cwt", 'c\\texttt{<C-r>"}<Esc>', {
+  noremap = true,
+  silent = true,
+  desc = "Wrap selection with \\texttt{}",
+})
 -- Lspsaga outline
 vim.keymap.set("n", "<leader>co", "<cmd>Lspsaga outline<CR>", { desc = "Open Lspsaga Outline" })
 
