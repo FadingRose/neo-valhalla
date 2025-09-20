@@ -11,7 +11,7 @@ require("custom_plugins.source-code-fetcher").setup({})
 
 require("custom_plugins.local-variable-highlighter").setup()
 
--- require("custom_plugins.solidity-state-variable-highlighter").setup()
+require("custom_plugins.solidity-state-variable-highlighter").setup()
 
 -- grammar check
 require("grammar-guard").init()
