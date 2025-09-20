@@ -14,7 +14,7 @@ vim.opt.linespace = 1
 -- Code
 -- vim.o.guifont = "Intel One Mono,LXGW WenKai Mono:h9:h14"
 
-vim.o.guifont = "Maple Mono NF CN:h13"
+vim.o.guifont = "Google Sans Code:h13"
 
 vim.api.nvim_create_autocmd("CursorHold", {
   pattern = "*",
