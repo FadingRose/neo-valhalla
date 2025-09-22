@@ -3,6 +3,29 @@ local M = {}
 -- Namespace for our custom highlights
 local ns_id = vim.api.nvim_create_namespace("solidity_state_vars")
 
+local function collect_vars_recursively(filepath, visited)
+  filepath = vim.fn.expand(filepath)
+  if not filepath or visited[filepath] then
+    return {}
+  end
+  visited[filepath] = true
+
+  local file = io.open(filepath, "r")
+  if not file then
+    return {}
+  end
+  local content = file:read("*a")
+  file:close()
+
+  local parser = vim.treesitter.get_parser(0, "solidity")
+  local tree = parser:parse_str(content)[1]
+  if not tree then
+    return {}
+  end
+  local root = tree:root()
+  local all_vars = {}
+end
+
 -- The core highlighting function
 local function highlight_state_vars(bufnr)
   -- Ensure the buffer is valid and has a 'solidity' parser available
@@ -51,6 +74,8 @@ local function highlight_state_vars(bufnr)
    ]]
   )
 
+  -- Step 2.1: Find state variables from this contract
+
   for _, node, _ in query_function_modifiers:iter_captures(root, bufnr, 0, -1) do
     -- local modifier_name = vim.treesitter.get_node_text(node, bufnr)
     -- vim.notify("Found state_variable in function modifier: " .. modifier_name, vim.log.levels.INFO)
@@ -61,6 +86,47 @@ local function highlight_state_vars(bufnr)
       hl_group = "@variable.parameter", -- Corresponds to @variable.builtin
     })
   end
+
+  -- Step 2.2: Find state variables from inherition contracts
+
+  local imports = {}
+  local import_query = vim.treesitter.query.parse(
+    "solidity",
+    [[
+      (import_directive
+        import_name: (identifier) @name
+        source: (string) @source)
+    ]]
+  )
+
+  for _, match in import_query:iter_matches(root, 0) do
+    local name_node = match.name
+    local source_node = match.source
+
+    vim.notify(
+      "Found import: "
+        .. vim.treesitter.get_node_text(name_node, 0)
+        .. " from "
+        .. vim.treesitter.get_node_text(source_node, 0),
+      vim.log.levels.INFO
+    )
+
+    -- if name_node and source_node then
+    --   -- Use the directive node's unique ID as a key for grouping.
+    --   local directive_id = directive_node:id()
+    --
+    --   if not imports[directive_id] then
+    --     imports[directive_id] = {
+    --       source = vim.treesitter.get_node_text(source_node, 0),
+    --       names = {},
+    --     }
+    --   end
+    --
+    --   table.insert(imports[directive_id].names, vim.treesitter.get_node_text(name_node, 0))
+    -- end
+  end
+
+  -- Step 3: Highlight state variable usages in function bodies
 
   local query_function_bodies = vim.treesitter.query.parse(
     "solidity",
