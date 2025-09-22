@@ -89,42 +89,41 @@ local function highlight_state_vars(bufnr)
 
   -- Step 2.2: Find state variables from inherition contracts
 
-  local imports = {}
-  local import_query = vim.treesitter.query.parse(
-    "solidity",
-    [[
-      (import_directive
-        import_name: (identifier) @name
-        source: (string) @source)
-    ]]
-  )
+  -- local imports = {}
+  -- local import_query = vim.treesitter.query.parse(
+  --   "solidity",
+  --   [[
+  --     (import_directive
+  --       import_name: (identifier) @name
+  --       source: (string) @source)
+  --   ]]
+  -- )
 
-  for _, match in import_query:iter_matches(root, 0) do
-    local name_node = match.name
-    local source_node = match.source
-
-    vim.notify(
-      "Found import: "
-        .. vim.treesitter.get_node_text(name_node, 0)
-        .. " from "
-        .. vim.treesitter.get_node_text(source_node, 0),
-      vim.log.levels.INFO
-    )
-
-    -- if name_node and source_node then
-    --   -- Use the directive node's unique ID as a key for grouping.
-    --   local directive_id = directive_node:id()
-    --
-    --   if not imports[directive_id] then
-    --     imports[directive_id] = {
-    --       source = vim.treesitter.get_node_text(source_node, 0),
-    --       names = {},
-    --     }
-    --   end
-    --
-    --   table.insert(imports[directive_id].names, vim.treesitter.get_node_text(name_node, 0))
-    -- end
-  end
+  -- for _, match in import_query:iter_matches(root, 0) do
+  --   local name_node = match.name
+  --   local source_node = match.source
+  --
+  --   vim.notify(
+  --     "Found import: "
+  --       .. vim.treesitter.get_node_text(name_node, 0)
+  --       .. " from "
+  --       .. vim.treesitter.get_node_text(source_node, 0),
+  --     vim.log.levels.INFO
+  --   )
+  -- if name_node and source_node then
+  --   -- Use the directive node's unique ID as a key for grouping.
+  --   local directive_id = directive_node:id()
+  --
+  --   if not imports[directive_id] then
+  --     imports[directive_id] = {
+  --       source = vim.treesitter.get_node_text(source_node, 0),
+  --       names = {},
+  --     }
+  --   end
+  --
+  --   table.insert(imports[directive_id].names, vim.treesitter.get_node_text(name_node, 0))
+  -- end
+  -- end
 
   -- Step 3: Highlight state variable usages in function bodies
 
