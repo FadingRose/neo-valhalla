@@ -532,7 +532,7 @@ return {
       },
     },
     strategies = {
-      chat = { adapter = "openrouter_pro" },
+      chat = { adapter = "openrouter_flash" },
       inline = { adapter = "openrouter_flash" },
       agent = { adapter = "openrouter_flash" },
     },

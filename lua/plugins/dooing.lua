@@ -118,27 +118,31 @@ return {
       -- Priority settings
       priorities = {
         {
-          name = "important",
+          name = "!!!",
           weight = 4,
         },
         {
-          name = "urgent",
+          name = "!!",
+          weight = 3,
+        },
+        {
+          name = "!",
           weight = 2,
         },
       },
       priority_groups = {
         high = {
-          members = { "important", "urgent" },
+          members = { "!!!", "!" },
           color = nil,
           hl_group = "DiagnosticError",
         },
         medium = {
-          members = { "important" },
+          members = { "!!" },
           color = nil,
           hl_group = "DiagnosticWarn",
         },
         low = {
-          members = { "urgent" },
+          members = { "!" },
           color = nil,
           hl_group = "DiagnosticInfo",
         },
