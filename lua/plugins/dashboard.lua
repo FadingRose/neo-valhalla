@@ -127,7 +127,7 @@ return {
           {
             action = function()
               local original_dir = vim.fn.getcwd() -- Store original directory
-              vim.fn.chdir(vim.fn.expand("~/MasterMaid's Obsidian Vaults/"))
+              vim.fn.chdir(vim.fn.expand("~/smart-contract-poc/"))
 
               local function select_and_open(current_path)
                 vim.ui.select(
@@ -146,7 +146,7 @@ return {
                       if vim.fn.system("git -C " .. vim.fn.escape(new_path, " ") .. " rev-parse --is-inside-work-tree 2>/dev/null") == "true\n" then
                         require("telescope.builtin").find_files({
                             cwd = new_path,
-                            find_command = { "git", "ls-files", "--", "*.sol" }
+                            find_command = { "git", "ls-files", "--", "*.sol", "*.md", "*.tx"}
                         })
                       else
                         -- If not a git repo, recursively select from subdirectories
@@ -162,7 +162,7 @@ return {
 
               select_and_open(vim.fn.getcwd()) -- Start the selection process from the current directory
             end,
-            desc = " Vaults",
+            desc = " Incidents",
             icon = "󰂻 ",
             key = "v"
           },

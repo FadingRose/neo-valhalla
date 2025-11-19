@@ -191,3 +191,29 @@ vim.api.nvim_set_keymap(
   ':let @+=expand("%:p")<CR>',
   { noremap = true, silent = true, desc = "Copy current file path to clipboard" }
 )
+
+local function clear_markdown_formatting()
+  local start_line = vim.fn.line("'<")
+  local end_line = vim.fn.line("'>")
+  local start_col = vim.fn.col("'<")
+  local end_col = vim.fn.col("'>")
+
+  local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+
+  local new_lines = {}
+  for i, line in ipairs(lines) do
+    local modified_line = line:gsub("`", ""):gsub("%*", "")
+    table.insert(new_lines, modified_line)
+  end
+
+  vim.api.nvim_buf_set_lines(0, start_line - 1, end_line, false, new_lines)
+
+  -- Re-select the changed text to keep visual mode active
+  vim.cmd("normal! gv")
+end
+
+vim.keymap.set("x", "<leader>cr", clear_markdown_formatting, {
+  noremap = true,
+  silent = true,
+  desc = "Clear Markdown inline code and bold formatting",
+})

@@ -35,8 +35,10 @@ M.setup = function()
 
     -- 前景与注释
     fg = "#F2F2F2", -- 普通前景文字 (灰白)
-    comment = "#102940", -- 注释 (使用海军蓝，低对比度)
-    line_nr = "#102940", -- 行号 (使用海军蓝，低对比度)
+    fg_dim = "#7392B7", -- 暗淡前景 (用于注释、行号等，提供中等对比度)
+    fg_dim_alt = "#9BBCDC", -- 次暗淡前景 (用于字符串、操作符等，比fg_dim亮一些)
+    comment = "#7392B7", -- 注释 (使用fg_dim)
+    line_nr = "#7392B7", -- 行号 (使用fg_dim)
     current_line_nr = "#F2F2F2", -- 当前行号 (同前景)
 
     -- ===============================================
@@ -49,11 +51,11 @@ M.setup = function()
     type_color = "#F2F2F2", -- 使用白色，通过斜体区分
 
     -- [3] 关键字 (最不突出)
-    keyword_color = "#102940", -- 使用海军蓝，视觉上后退
+    keyword_color = "#9BBCDC", -- 使用fg_dim_alt，视觉上后退但仍可见
 
     -- 其他高亮颜色
     error_red = "#F26430", -- 橙色作为UI/错误色保留
-    string_yellow = "#102940", -- 字符串使用海军蓝，融入背景
+    string_yellow = "#9BBCDC", -- 字符串使用fg_dim_alt
     number_orange = "#F26430", -- 数字是少数保留橙色的语法元素
     special_magenta = "#F26430", -- 特殊符号、标题等UI元素使用橙色
 
@@ -100,7 +102,7 @@ M.setup = function()
   hi("SignColumn", c.fg, c.bg)
   hi("VertSplit", c.bg_alt, c.bg_alt) -- Use bg_alt to make splits visible
   hi("StatusLine", c.fg, c.bg_alt)
-  hi("StatusLineNC", c.comment, c.bg)
+  hi("StatusLineNC", c.fg_dim, c.bg)
   hi("Pmenu", c.fg, c.bg_alt)
   hi("PmenuSel", c.bg, c.ui_purple)
   hi("PmenuThumb", c.fg, c.bg)
@@ -284,20 +286,36 @@ M.setup = function()
     },
   }
 
-  local augroup = vim.api.nvim_create_augroup("HomelandSecurityColors", { clear = true })
-
+  local augroup = vim.api.nvim_create_augroup("HomelandSecurityLualine", { clear = true })
   vim.api.nvim_create_autocmd("ColorScheme", {
     group = augroup,
-    pattern = "homeland-security",
-    callback = function()
-      if not package.loaded.lualine then
+    pattern = "*", -- 监听所有配色方案的变化
+    callback = function(ev)
+      -- 安全地与 lualine 交互
+      local success, lualine = pcall(require, "lualine")
+      if not success then
         return
       end
 
-      local lualine_config = require("lualine").get_config()
-      lualine_config.options.theme = lualine_theme
+      local lualine_config = lualine.get_config()
+      local needs_refresh = false
 
-      require("lualine").setup(lualine_config)
+      -- 当切换到本主题时
+      if ev.new == "homeland-security" then
+        if lualine_config.options.theme ~= lualine_theme then
+          lualine_config.options.theme = lualine_theme
+          needs_refresh = true
+        end
+        -- 当从本主题切换走时
+      elseif ev.old == "homeland-security" then
+        -- 重置为 'auto'，让 lualine 为新主题自动处理
+        lualine_config.options.theme = "auto"
+        needs_refresh = true
+      end
+
+      if needs_refresh then
+        lualine.setup(lualine_config)
+      end
     end,
   })
 end

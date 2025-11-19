@@ -299,20 +299,36 @@ M.setup = function()
     },
   }
 
-  local augroup = vim.api.nvim_create_augroup("AquaPinkColors", { clear = true })
-
+  local augroup = vim.api.nvim_create_augroup("AquaPinkLualine", { clear = true })
   vim.api.nvim_create_autocmd("ColorScheme", {
     group = augroup,
-    pattern = "aqua-pink",
-    callback = function()
-      if not package.loaded.lualine then
+    pattern = "*", -- 监听所有配色方案的变化
+    callback = function(ev)
+      -- 安全地与 lualine 交互
+      local success, lualine = pcall(require, "lualine")
+      if not success then
         return
       end
 
-      local lualine_config = require("lualine").get_config()
-      lualine_config.options.theme = lualine_theme
+      local lualine_config = lualine.get_config()
+      local needs_refresh = false
 
-      require("lualine").setup(lualine_config)
+      -- 当切换到本主题时
+      if ev.new == "aqua-pink" then
+        if lualine_config.options.theme ~= lualine_theme then
+          lualine_config.options.theme = lualine_theme
+          needs_refresh = true
+        end
+        -- 当从本主题切换走时
+      elseif ev.old == "aqua-pink" then
+        -- 重置为 'auto'，让 lualine 为新主题自动处理
+        lualine_config.options.theme = "auto"
+        needs_refresh = true
+      end
+
+      if needs_refresh then
+        lualine.setup(lualine_config)
+      end
     end,
   })
 end

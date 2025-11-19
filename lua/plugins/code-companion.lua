@@ -265,8 +265,8 @@ return {
           user_prompt = false,
           stop_context_insertion = true,
           adapter = {
-            name = "siliconflow_v3",
-            model = "Pro/deepseek-ai/DeepSeek-V3",
+            name = "openrouter_flash",
+            model = "google/gemini-2.5-flash",
           },
         },
         prompts = {
@@ -484,8 +484,54 @@ return {
           },
         },
       },
-      ["Convert to one line "] = {
+      ["Remove markdown format"] = {
         strategy = "chat",
+        description = "Remove markdown format",
+        opts = {
+          index = 5,
+          is_default = true,
+          is_slash_cmd = false,
+          modes = { "v" },
+          short_name = "Remove markdown format",
+          auto_submit = true,
+          user_prompt = false,
+          stop_context_insertion = true,
+        },
+        prompts = {
+          {
+            role = "system",
+            content = [[
+              去掉所有的 markdown 格式，不需要改变原文表达。
+            ]],
+            opts = {
+              visible = false,
+            },
+          },
+          {
+            role = "user",
+            content = function(context)
+              local input = require("codecompanion.helpers.actions").get_code(context.start_line, context.end_line)
+
+              return string.format(
+                [[ Please handle content in buffer %d :
+
+  ```%s
+  %s
+  ```
+  ]],
+                context.bufnr,
+                context.filetype,
+                input
+              )
+            end,
+            opts = {
+              contains_code = true,
+            },
+          },
+        },
+      },
+      ["Convert to one line "] = {
+        strategy = "inline",
         description = "Convert to one line and add math latex",
         opts = {
           index = 5,
@@ -574,7 +620,20 @@ return {
           },
         })
       end,
-
+      openrouter_pro_3 = function()
+        return require("codecompanion.adapters").extend("openai_compatible", {
+          env = {
+            url = "https://openrouter.ai/api",
+            api_key = "cmd:echo $OPENROUTER_API_KEY",
+            chat_url = "/v1/chat/completions",
+          },
+          schema = {
+            model = {
+              default = "google/gemini-3-pro-preview",
+            },
+          },
+        })
+      end,
       openrouter_pro = function()
         return require("codecompanion.adapters").extend("openai_compatible", {
           env = {
