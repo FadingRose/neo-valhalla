@@ -40,6 +40,7 @@ vim.cmd([[
   nnoremap <silent> b :call CustomB()<CR>
 ]])
 
+require("custom_plugins.auditscope.mind").setup({})
 -- set filetype for .tx files
 -- vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
 --   pattern = { "*.trace", "*.txlog", "*.tx" }, -- 你希望关联的文件后缀名

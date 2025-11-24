@@ -217,3 +217,20 @@ vim.keymap.set("x", "<leader>cr", clear_markdown_formatting, {
   silent = true,
   desc = "Clear Markdown inline code and bold formatting",
 })
+
+local audit_mind = require("custom_plugins.auditscope.mind")
+vim.keymap.set("n", "<leader>mh", function()
+  audit_mind.new_node("hypothesis")
+end, { desc = "Audit: New Hypothesis" })
+
+vim.keymap.set("n", "<leader>mf", function()
+  audit_mind.new_node("fact")
+end, { desc = "Audit: New Fact" })
+
+vim.keymap.set("n", "<leader>mq", function()
+  audit_mind.new_node("question")
+end, { desc = "Audit: New Question" })
+
+vim.keymap.set("n", "<leader>mm", function()
+  audit_mind.open_dashboard()
+end, { desc = "Audit: Mind Map" })
