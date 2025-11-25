@@ -219,18 +219,30 @@ vim.keymap.set("x", "<leader>cr", clear_markdown_formatting, {
 })
 
 local audit_mind = require("custom_plugins.auditscope.mind")
-vim.keymap.set("n", "<leader>mh", function()
+vim.keymap.set({ "n", "v" }, "<leader>3h", function()
   audit_mind.new_node("hypothesis")
 end, { desc = "Audit: New Hypothesis" })
 
-vim.keymap.set("n", "<leader>mf", function()
+vim.keymap.set({ "n", "v" }, "<leader>3f", function()
   audit_mind.new_node("fact")
 end, { desc = "Audit: New Fact" })
 
-vim.keymap.set("n", "<leader>mq", function()
+vim.keymap.set({ "n", "v" }, "<leader>3i", function()
+  audit_mind.new_node("insight")
+end, { desc = "Audit: New Insight" })
+
+vim.keymap.set({ "n", "v" }, "<leader>3q", function()
   audit_mind.new_node("question")
 end, { desc = "Audit: New Question" })
 
-vim.keymap.set("n", "<leader>mm", function()
+vim.keymap.set("n", "<leader>3M", function()
   audit_mind.open_dashboard()
 end, { desc = "Audit: Mind Map" })
+
+vim.keymap.set("n", "<leader>3m", function()
+  audit_mind.modify_node()
+end, { desc = "Audit: Modify Node" })
+
+vim.keymap.set("n", "<leader>3d", function()
+  audit_mind.delete_node()
+end, { desc = "Audit: Delete Node" })

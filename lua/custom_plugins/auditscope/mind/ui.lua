@@ -1,5 +1,5 @@
 -- lua/auditscope/mind/ui.lua
-local Input = require("nui.input")
+local Layout = require("nui.layout")
 local Popup = require("nui.popup")
 local NuiTree = require("nui.tree")
 local event = require("nui.utils.autocmd").event
@@ -23,62 +23,314 @@ function M.setup(user_config)
   }, user_config or {})
 end
 
+local function sanitize_text(text)
+  if not text then
+    return ""
+  end
+  return text:gsub("[\r\n]+", " ")
+end
+
 -- 辅助：获取当前上下文
 local function get_context()
+  local file = vim.fn.expand("%:p")
+  local current_line_num = vim.api.nvim_win_get_cursor(0)[1]
+  local selected_text = ""
+  local start_line_to_use = current_line_num
+  local end_line_to_use = current_line_num
+
+  local mode = vim.fn.mode()
+  if mode:find("v") then -- Check if in any visual mode ('v', 'V', '^V')
+    local start_cursor_pos = vim.api.nvim_buf_get_mark(0, "<")
+    local end_cursor_pos = vim.api.nvim_buf_get_mark(0, ">")
+
+    if start_cursor_pos and end_cursor_pos then
+      local start_line = start_cursor_pos[1]
+      local end_line = end_cursor_pos[1]
+      local start_col = start_cursor_pos[2]
+      local end_col = end_cursor_pos[2]
+
+      start_line_to_use = start_line
+      end_line_to_use = end_line
+
+      local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
+
+      if #lines == 1 and start_line == end_line then
+        selected_text = lines[1]:sub(start_col + 1, end_col + 1)
+      else
+        selected_text = table.concat(lines, "\n")
+      end
+    end
+  else
+    selected_text = vim.trim(vim.api.nvim_get_current_line())
+  end
+
+  -- If no selection or visual mode is not active, ensure text is current line
+  if selected_text == "" then
+    selected_text = vim.trim(vim.api.nvim_get_current_line())
+    start_line_to_use = current_line_num
+    end_line_to_use = current_line_num
+  end
+
   return {
-    file = vim.fn.expand("%:p"),
-    line = vim.api.nvim_win_get_cursor(0)[1],
-    text = vim.trim(vim.api.nvim_get_current_line()),
+    file = file,
+    start_line = start_line_to_use,
+    end_line = end_line_to_use,
+    text = selected_text,
   }
+end
+
+local function format_line_range(start_line, end_line)
+  if not start_line then
+    return ""
+  end
+  if not end_line or start_line == end_line then
+    return tostring(start_line)
+  end
+  return string.format("%d-%d", start_line, end_line)
+end
+
+local function unlink_node(source_node, on_complete)
+  local edges = db.get_edges()
+  local nodes = db.get_nodes()
+  local node_map = {}
+  for _, n in ipairs(nodes) do
+    node_map[n.id] = n
+  end
+
+  local links = {}
+  local link_map = {}
+
+  for _, edge in ipairs(edges) do
+    local other_node = nil
+    local label_prefix = ""
+
+    if edge.from == source_node.id then
+      other_node = node_map[edge.to]
+      label_prefix = "--> " .. (edge.relation or "relates")
+    elseif edge.to == source_node.id then
+      other_node = node_map[edge.from]
+      label_prefix = "<-- " .. (edge.relation or "relates")
+    end
+
+    if other_node then
+      local label = string.format(
+        "%s: %s %s (%s)",
+        label_prefix,
+        config.icons[other_node.type] or "?",
+        other_node.text,
+        vim.fn.fnamemodify(other_node.file, ":t")
+      )
+      table.insert(links, label)
+      link_map[label] = edge
+    end
+  end
+
+  if #links == 0 then
+    print("No links to remove.")
+    return
+  end
+
+  vim.ui.select(links, { prompt = "Unlink node:" }, function(choice)
+    if choice then
+      local edge = link_map[choice]
+      if db.delete_edge then
+        -- Assuming db.delete_edge(from, to) or similar. Adjust based on actual db implementation.
+        db.delete_edge(edge.from, edge.to)
+        print("Link removed.")
+      else
+        print("Error: db.delete_edge not implemented.")
+      end
+      if on_complete then
+        on_complete()
+      end
+    end
+  end)
+end
+
+local function show_input_buffer(title, initial_value, on_submit, node_context)
+  local input_popup = Popup({
+    enter = true,
+    focusable = true,
+    border = {
+      style = "rounded",
+      text = {
+        top = " " .. title .. " ",
+        top_align = "center",
+        bottom = " <C-s> Submit | <Esc> Cancel" .. (node_context and " | <C-l> Link | <C-d> Unlink " or " "),
+        bottom_align = "center",
+      },
+    },
+    -- If using layout, size/position controlled by layout, else default
+    position = node_context and nil or "50%",
+    size = node_context and nil or { width = "60%", height = "40%" },
+  })
+
+  local layout = nil
+  local info_popup = nil
+
+  if node_context then
+    info_popup = Popup({
+      enter = false,
+      focusable = false,
+      border = {
+        style = "rounded",
+        text = { top = " Linked Nodes " },
+      },
+    })
+
+    layout = Layout(
+      {
+        position = "50%",
+        size = { width = "60%", height = "50%" },
+      },
+      Layout.Box({
+        Layout.Box(info_popup, { size = "30%" }),
+        Layout.Box(input_popup, { size = "70%" }),
+      }, { dir = "col" })
+    )
+  end
+
+  -- Refresh Info View
+  local function refresh_info()
+    if not info_popup or not node_context then
+      return
+    end
+    local edges = db.get_edges()
+    local nodes = db.get_nodes()
+    local node_map = {}
+    for _, n in ipairs(nodes) do
+      node_map[n.id] = n
+    end
+
+    local lines = {}
+    for _, edge in ipairs(edges) do
+      local other = nil
+      local rel_txt = ""
+      if edge.from == node_context.id then
+        other = node_map[edge.to]
+        rel_txt = string.format("--> [%s] ", edge.relation)
+      elseif edge.to == node_context.id then
+        other = node_map[edge.from]
+        rel_txt = string.format("<-- [%s] ", edge.relation)
+      end
+
+      if other then
+        table.insert(lines, string.format("%s%s %s", rel_txt, config.icons[other.type] or "*", other.text))
+      end
+    end
+
+    if #lines == 0 then
+      table.insert(lines, "(No links)")
+    end
+
+    vim.api.nvim_buf_set_lines(info_popup.bufnr, 0, -1, false, lines)
+  end
+
+  -- Mount
+  if layout then
+    layout:mount()
+    refresh_info()
+  else
+    input_popup:mount()
+  end
+
+  -- Set Content
+  if initial_value and #initial_value > 0 then
+    vim.api.nvim_buf_set_lines(input_popup.bufnr, 0, -1, false, vim.split(initial_value, "\n"))
+  end
+
+  -- Submit Handler
+  local function submit()
+    local lines = vim.api.nvim_buf_get_lines(input_popup.bufnr, 0, -1, false)
+    local value = vim.trim(table.concat(lines, "\n"))
+    if layout then
+      layout:unmount()
+    else
+      input_popup:unmount()
+    end
+    on_submit(value)
+  end
+
+  local function close()
+    if layout then
+      layout:unmount()
+    else
+      input_popup:unmount()
+    end
+  end
+
+  -- Mappings
+  input_popup:map("n", "<C-s>", submit)
+  input_popup:map("i", "<C-s>", submit)
+  input_popup:map("n", "<Esc>", close)
+
+  -- Add extra mappings if context exists
+  if node_context then
+    input_popup:map("i", "<C-l>", function()
+      M.link_node(node_context, refresh_info)
+    end)
+    input_popup:map("n", "<C-l>", function()
+      M.link_node(node_context, refresh_info)
+    end)
+
+    input_popup:map("i", "<C-d>", function()
+      unlink_node(node_context, refresh_info)
+    end)
+    input_popup:map("n", "<C-d>", function()
+      unlink_node(node_context, refresh_info)
+    end)
+  end
+
+  -- Note: Removed BufLeave auto-close to support modals (vim.ui.select) used in link actions
 end
 
 -- 1. 创建新节点
 function M.create_node(type)
   local ctx = get_context()
 
-  local input = Input({
-    position = "50%",
-    size = { width = 60 },
-    border = { style = "rounded", text = { top = " New " .. type .. " " } },
-  }, {
-    on_submit = function(value)
-      if value and #value > 0 then
-        local node = {
-          id = tostring(os.time()) .. math.random(100, 999),
-          type = type,
-          text = value,
-          file = ctx.file,
-          line = ctx.line,
-          code_snippet = ctx.text,
-          timestamp = os.time(),
-        }
-        db.add_node(node)
-        print("Node added: " .. value)
+  show_input_buffer("New " .. type, "", function(value)
+    if value and #value > 0 then
+      local node = {
+        id = tostring(os.time()) .. math.random(100, 999),
+        type = type,
+        text = value,
+        file = ctx.file,
+        start_line = ctx.start_line,
+        end_line = ctx.end_line,
+        code_snippet = ctx.text,
+        timestamp = os.time(),
+      }
+      db.add_node(node)
+      print("Node added: " .. value)
 
-        -- 创建完节点后，询问是否要连接（Workflow）
-        vim.defer_fn(function()
-          M.link_node(node)
-        end, 100)
-      end
-    end,
-  })
-  input:mount()
+      -- 创建完节点后，询问是否要连接（Workflow）
+      vim.defer_fn(function()
+        M.link_node(node)
+      end, 100)
+    end
+  end)
 end
 
 -- 2. 连接节点 (Link)
-function M.link_node(source_node)
+function M.link_node(source_node, on_complete)
   local nodes = db.get_nodes()
   if #nodes <= 1 then
+    print("No other nodes to link.")
     return
-  end -- 没有其他节点可连
+  end
 
   local items = {}
   local node_map = {}
 
   for _, n in ipairs(nodes) do
     if n.id ~= source_node.id then
-      local label =
-        string.format("%s %s (%s:%d)", config.icons[n.type], n.text, vim.fn.fnamemodify(n.file, ":t"), n.line)
+      local label = string.format(
+        "%s %s (%s:%d)",
+        config.icons[n.type],
+        n.text,
+        vim.fn.fnamemodify(n.file, ":t"),
+        format_line_range(n.start_line, n.end_line)
+      )
       table.insert(items, label)
       node_map[label] = n
     end
@@ -92,12 +344,13 @@ function M.link_node(source_node)
 
     vim.ui.select({ "supports", "refutes", "relates" }, { prompt = "Relation Type:" }, function(rel)
       if rel then
-        -- 注意方向：如果是 Fact 支持 Hypothesis，From=Fact, To=Hypothesis
-        -- 为了简化，我们总是让 source 指向 target，用户自己决定逻辑
         db.add_edge(source_node.id, target.id, rel)
         print(string.format("Linked: %s --[%s]--> %s", source_node.text, rel, target.text))
         if dashboard_win then
           M.refresh_dashboard()
+        end
+        if on_complete then
+          on_complete()
         end
       end
     end)
@@ -116,8 +369,11 @@ function M.toggle_dashboard()
     enter = true,
     focusable = true,
     border = { style = "rounded", text = { top = " AuditMind Graph " } },
-    position = "right",
-    size = { width = "40%", height = "80%" },
+    position = {
+      row = "50%", -- Center vertically
+      col = "50%", -- Anchor to the right
+    },
+    size = { width = "90%", height = "90%" },
   })
   dashboard_win:mount()
 
@@ -134,10 +390,25 @@ function M.toggle_dashboard()
       dashboard_win:unmount()
       dashboard_win = nil
       vim.cmd("e " .. node.data.file)
-      vim.api.nvim_win_set_cursor(0, { node.data.line, 0 })
+      vim.api.nvim_win_set_cursor(0, { node.data.start_line, 0 })
     end
   end)
 
+  local function toggle_expand()
+    local tree = dashboard_win.tree
+    local node = tree:get_node()
+    if node and node:has_children() then
+      if node:is_expanded() then
+        node:collapse()
+      else
+        node:expand()
+      end
+      tree:render()
+    end
+  end
+
+  dashboard_win:map("n", "<Tab>", toggle_expand)
+  dashboard_win:map("n", "o", toggle_expand)
   M.refresh_dashboard()
 end
 
@@ -148,71 +419,232 @@ function M.refresh_dashboard()
 
   local nodes = db.get_nodes()
   local edges = db.get_edges()
+
+  -- 1. 构建查找表 (Map)
+  local node_map = {}
+  for _, n in ipairs(nodes) do
+    node_map[n.id] = n
+  end
+
+  -- 2. 构建反向边映射: Target ID -> List of Edges (指所有指向这个节点的边)
+  local incoming_map = {}
+  for _, edge in ipairs(edges) do
+    if not incoming_map[edge.to] then
+      incoming_map[edge.to] = {}
+    end
+    table.insert(incoming_map[edge.to], edge)
+  end
+
+  local processed_ids = {} -- 记录已经被放入树中的节点 ID (作为跟或子节点)
+
+  -- 3. 递归构建树节点的辅助函数
+  -- parent_id: 当前正在构建的父节点ID
+  -- path: 用于检测循环引用的路径表
+  local function build_tree_nodes(parent_id, path)
+    local children_ui_nodes = {}
+    local incoming = incoming_map[parent_id] or {}
+
+    for _, edge in ipairs(incoming) do
+      local src_node_id = edge.from
+      local src_node = node_map[src_node_id]
+
+      -- 只有当源节点存在，且不在当前递归路径中（防止死循环 A->B->A）
+      if src_node and not path[src_node_id] then
+        -- 记录新路径
+        local new_path = vim.deepcopy(path)
+        new_path[src_node_id] = true
+
+        -- 标记为全局已处理，避免出现在孤立节点列表中
+        processed_ids[src_node_id] = true
+
+        -- 递归获取子节点的子节点 (Grandchildren)
+        local grand_children = build_tree_nodes(src_node_id, new_path)
+
+        -- 构建 NuiTree 节点
+        local ui_node = NuiTree.Node({
+          text = string.format(
+            "  %s %s %s",
+            config.icons[edge.relation] or "🔗",
+            config.icons[src_node.type] or "🔹",
+            sanitize_text(src_node.text)
+          ),
+          data = src_node,
+        }, grand_children) -- 传入递归结果作为 children
+
+        table.insert(children_ui_nodes, ui_node)
+      end
+    end
+
+    return children_ui_nodes
+  end
+
   local tree_nodes = {}
 
-  -- 策略：将 Hypothesis 和 Question 作为顶级节点
-  -- 将 Supports/Refutes 的节点作为子节点
-
-  local processed_ids = {}
-
+  -- 4. 策略：优先处理 Hypothesis 和 Question 作为根节点
   for _, node in ipairs(nodes) do
     if node.type == "hypothesis" or node.type == "question" then
-      local children = {}
-      local incoming = db.get_incoming_edges(node.id)
+      processed_ids[node.id] = true
 
-      for _, edge in ipairs(incoming) do
-        -- 找到源节点
-        local src_node = nil
-        for _, n in ipairs(nodes) do
-          if n.id == edge.from then
-            src_node = n
-            break
-          end
-        end
-
-        if src_node then
-          table.insert(
-            children,
-            NuiTree.Node({
-              text = string.format(
-                "  %s %s %s",
-                config.icons[edge.relation],
-                config.icons[src_node.type],
-                src_node.text
-              ),
-              data = src_node,
-            })
-          )
-        end
-      end
+      -- 开始递归构建子树
+      local children = build_tree_nodes(node.id, { [node.id] = true })
 
       table.insert(
         tree_nodes,
         NuiTree.Node({
-          text = string.format("%s %s", config.icons[node.type], node.text),
+          text = string.format("%s %s", config.icons[node.type] or "🔹", sanitize_text(node.text)),
           data = node,
         }, children)
       )
-
-      processed_ids[node.id] = true
     end
   end
 
-  -- 把剩下的孤立节点也放进去
+  -- 5. 处理孤立节点（既不是跟节点，也没有被作为子节点引用过）
   for _, node in ipairs(nodes) do
     if not processed_ids[node.id] then
+      -- 这里可以尝试检查该节点是否有子节点，如果有，也构建一棵树
+      -- 即使它不是 Hypothesis/Question (例如孤立的 Insight -> Fact 链)
+      local children = build_tree_nodes(node.id, { [node.id] = true })
+
       table.insert(
         tree_nodes,
         NuiTree.Node({
-          text = string.format("%s %s", config.icons[node.type], node.text),
+          text = string.format("%s %s", config.icons[node.type] or "🔹", sanitize_text(node.text)),
           data = node,
-        })
+        }, children)
       )
     end
   end
 
-  dashboard_win.tree = NuiTree({ nodes = tree_nodes, bufid = dashboard_win.bufnr })
+  dashboard_win.tree = NuiTree({ nodes = tree_nodes, bufnr = dashboard_win.bufnr })
   dashboard_win.tree:render()
+end
+
+-- 4. 删除节点
+function M.delete_node()
+  local nodes = db.get_nodes()
+  if #nodes == 0 then
+    print("No nodes to delete.")
+    return
+  end
+
+  local items = {}
+  local node_map = {}
+  for _, n in ipairs(nodes) do
+    local label = string.format(
+      "%s %s (%s:%d)",
+      config.icons[n.type],
+      n.text,
+      vim.fn.fnamemodify(n.file, ":t"),
+      format_line_range(n.start_line, n.end_line)
+    )
+    table.insert(items, label)
+    node_map[label] = n
+  end
+
+  vim.ui.select(items, { prompt = "Select node to delete:" }, function(choice)
+    if not choice then
+      return
+    end
+    local node_to_delete = node_map[choice]
+    if node_to_delete then
+      db.delete_node(node_to_delete.id)
+      print("Node deleted: " .. node_to_delete.text)
+      if dashboard_win then
+        M.refresh_dashboard()
+      end
+    end
+  end)
+end
+
+-- 5. 修改节点
+function M.modify_node()
+  local raw_nodes = db.get_nodes()
+  if #raw_nodes == 0 then
+    print("No nodes to modify.")
+    return
+  end
+
+  -- 创建列表副本以进行排序，避免影响原始数据
+  local nodes = {}
+  for _, n in ipairs(raw_nodes) do
+    table.insert(nodes, n)
+  end
+
+  -- 获取当前上下文用于智能排序
+  local current_file = vim.fn.expand("%:p")
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local current_line = cursor[1]
+
+  -- 计算节点与当前光标的相关性距离
+  local function get_relevance_score(n)
+    -- 如果不是当前文件，优先级最低（距离设为无穷大）
+    if n.file ~= current_file then
+      return math.huge
+    end
+
+    local start_line = n.start_line or 0
+    local end_line = n.end_line or start_line
+
+    -- 光标在节点范围内：最高优先级（距离为0）
+    if current_line >= start_line and current_line <= end_line then
+      return 0
+    end
+
+    -- 计算到范围边界的最近距离
+    if current_line < start_line then
+      return start_line - current_line
+    else
+      return current_line - end_line
+    end
+  end
+
+  table.sort(nodes, function(a, b)
+    local score_a = get_relevance_score(a)
+    local score_b = get_relevance_score(b)
+
+    -- 距离越小越靠前
+    if score_a ~= score_b then
+      return score_a < score_b
+    end
+
+    -- 距离相同时（例如都是其他文件），按时间倒序（最新的在前）
+    return (a.timestamp or 0) > (b.timestamp or 0)
+  end)
+
+  local items = {}
+  local node_map = {}
+  for _, n in ipairs(nodes) do
+    local label = string.format(
+      "%s %s (%s:%d)",
+      config.icons[n.type],
+      n.text,
+      vim.fn.fnamemodify(n.file, ":t"),
+      format_line_range(n.start_line, n.end_line)
+    )
+    table.insert(items, label)
+    node_map[label] = n
+  end
+
+  vim.ui.select(items, { prompt = "Select node to modify:" }, function(choice)
+    if not choice then
+      return
+    end
+    local node_to_modify = node_map[choice]
+
+    if node_to_modify then
+      -- Pass node_to_modify to show_input_buffer context
+      show_input_buffer("Modify Node", node_to_modify.text, function(value)
+        if value and #value > 0 then
+          node_to_modify.text = value
+          db.update_node(node_to_modify)
+          print("Node modified: " .. value)
+          if dashboard_win then
+            M.refresh_dashboard()
+          end
+        end
+      end, node_to_modify)
+    end
+  end)
 end
 
 return M
