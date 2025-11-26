@@ -68,6 +68,69 @@ function M.get_effective_commit()
   return commit
 end
 
+function M.try_select_mind()
+  local git_root, _, current_commit = get_git_context()
+
+  local storage_dir = Path:new(git_root)
+  if not storage_dir then
+    return nil -- Silent failure
+  end
+  storage_dir = Path.joinpath(storage_dir, ".auiditscope.mind")
+
+  --- 尝试列出所有可用的思维图谱文件
+  if not storage_dir:exists() then
+    vim.notify("AuditScope: No mind map history found.", vim.log.levels.WARN)
+    return
+  end
+
+  local files = vim.fn.glob(storage_dir:absolute() .. "/*.json", 0, 1)
+  local options = {}
+
+  for _, file in ipairs(files) do
+    local filename = vim.fn.fnamemodify(file, ":t")
+    -- 解析格式: <ProjectName>_<CommitHash>.json
+    -- 使用 greedy match 匹配最后一个 _ 之前的内容作为 ProjectName
+    local p_name, c_hash = filename:match("^(.*)_(.*)%.json$")
+    if p_name and c_hash then
+      table.insert(options, {
+        project = p_name,
+        commit = c_hash,
+        file = file
+      })
+    end
+  end
+
+  if #options == 0 then
+    vim.notify("AuditScope: No mind map files available.", vim.log.levels.INFO)
+    return
+  end
+
+  vim.ui.select(options, {
+    prompt = "Select Audit Mind Map:",
+    format_item = function(item)
+      local marker = (item.commit == current_commit) and " (Current)" or ""
+      return string.format("%s - %s%s", item.commit, item.project, marker)
+    end,
+  }, function(choice)
+    if choice then
+      -- 锁定并加载选中的 commit
+      M.set_commit(choice.commit)
+      if M.TryLoadMind() then
+         vim.notify(string.format("Loaded mind map for commit: %s", choice.commit), vim.log.levels.INFO)
+         
+         -- 刷新 UI 组件 (安全调用)
+         local ok_signs, signs = pcall(require, "auditscope.mind.signs")
+         if ok_signs then signs.refresh() end
+         
+         local ok_ui, ui = pcall(require, "auditscope.mind.ui")
+         if ok_ui then ui.refresh_dashboard() end
+      else
+         vim.notify("Failed to load selected mind map.", vim.log.levels.ERROR)
+      end
+    end
+  end)
+end
+
 --- 尝试载入审计思维图谱数据库
 --- 如果成功则载入并设置M.data, M.file_path, M.project_info
 --- 如果失败则静默返回 nil

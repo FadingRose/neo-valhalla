@@ -46,6 +46,7 @@ function M.setup(opts)
   M.pin_node = M.ui.pin_node
   M.unpin_node = M.ui.unpin_node
   M.toggle_pin = M.ui.toggle_pin
+  M.select_commit = M.db.try_select_mind
 
   vim.api.nvim_create_user_command("AuditCreateMind", function()
     M.db.CreateMind()

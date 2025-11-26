@@ -6,7 +6,23 @@ return {
     "folke/snacks.nvim",
     priority = 1000,
     lazy = false,
-    opts = {},
+    opts = {
+      zen = {
+        toggles = {
+          dim = false,
+          git_signs = true,
+          mini_diff_signs = true,
+          diagnostics = true,
+          inlay_hints = true,
+        },
+        show = { statusline = false, tabline = false },
+      },
+      styles = {
+        zen = {
+          backdrop = { transparent = false },
+        },
+      },
+    },
   },
   {
     "ahmedkhalf/project.nvim",

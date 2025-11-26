@@ -246,3 +246,7 @@ end, { desc = "Audit: Modify Node" })
 vim.keymap.set("n", "<leader>3d", function()
   audit_mind.delete_node()
 end, { desc = "Audit: Delete Node" })
+
+vim.keymap.set("n", "<leader>3l", function()
+  audit_mind.select_commit()
+end, { desc = "Audit: Select Commit" })
