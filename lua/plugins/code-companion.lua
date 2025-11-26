@@ -80,8 +80,8 @@ return {
           user_prompt = false,
           stop_context_insertion = true,
           adapter = {
-            name = "siliconflow_r1",
-            model = "Pro/deepseek-ai/DeepSeek-R1",
+            name = "openrouter_flash",
+            model = "google/gemini-2.5-flash",
           },
         },
 
