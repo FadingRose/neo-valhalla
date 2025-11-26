@@ -41,11 +41,32 @@ function M.setup(opts)
     M.ui.modify_node()
     M.sign.refresh()
   end
+  M.set_commit = M.db.set_commit
+  M.unlock_commit = M.db.unlock_commit
+  M.pin_node = M.ui.pin_node
+  M.unpin_node = M.ui.unpin_node
+  M.toggle_pin = M.ui.toggle_pin
 
   vim.api.nvim_create_user_command("AuditCreateMind", function()
     M.db.CreateMind()
     M.sign.refresh() -- DB 就绪后，尝试刷新当前 Buffer 的标记
   end, { desc = "Initialize AuditMind session for current git commit" })
+  vim.api.nvim_create_user_command("AuditLockCommit", function(args)
+    local commit = args.args ~= "" and args.args or nil
+    M.db.set_commit(commit)
+  end, { nargs = "?", desc = "Lock AuditMind to a specific commit" })
+
+  vim.api.nvim_create_user_command("AuditUnlockCommit", function()
+    M.db.unlock_commit()
+  end, { desc = "Unlock AuditMind commit" })
+
+  vim.api.nvim_create_user_command("AuditPin", function()
+    M.ui.pin_node()
+  end, { desc = "Pin a question or hypothesis" })
+
+  vim.api.nvim_create_user_command("AuditUnpin", function()
+    M.ui.unpin_node()
+  end, { desc = "Unpin the current pinned node" })
 
   vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
     callback = function()

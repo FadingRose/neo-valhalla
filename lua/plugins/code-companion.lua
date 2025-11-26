@@ -649,6 +649,21 @@ return {
         })
       end,
 
+      glm = function()
+        return require("codecompanion.adapters").extend("openai_compatible", {
+          env = {
+            url = "https://openrouter.ai/api",
+            api_key = "cmd:echo $OPENROUTER_API_KEY",
+            -- api_key = vim.fn.getenv("OPENROUTER_API_KEY"),
+            chat_url = "/v1/chat/completions",
+          },
+          schema = {
+            model = {
+              default = "z-ai/glm-4.6:exacto",
+            },
+          },
+        })
+      end,
       openrouter_flash = function()
         return require("codecompanion.adapters").extend("openai_compatible", {
           env = {

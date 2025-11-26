@@ -10,36 +10,62 @@ M.project_info = {
   commit = nil,
 }
 
--- 辅助：获取 Git 信息
-local function get_git_context()
-  -- 向上查找 .git 目录
-  local dot_git_path = vim.fs.find(".git", {
-    path = vim.fn.getcwd(),
-    upward = true,
-    type = "directory",
-  })[1]
+M.locked_commit = nil
 
-  if not dot_git_path then
+local function get_git_context()
+  local git_root = vim.fs.root(0, ".git")
+
+  if not git_root then
     vim.notify("AuditScope: Not a git repository. Using logical root.", vim.log.levels.WARN)
     return vim.fn.getcwd(), "default_project", "no_commit"
   end
 
-  local git_root = vim.fn.fnamemodify(dot_git_path, ":h")
   local project_name = vim.fn.fnamemodify(git_root, ":t")
 
   -- 获取 Short Commit Hash
-  local cmd = string.format("git -C %s rev-parse --short HEAD", git_root)
-  local handle = io.popen(cmd)
-  local commit_hash = handle:read("*a")
-  handle:close()
-
-  if commit_hash then
-    commit_hash = commit_hash:gsub("%s+", "")
-  else
+  local commit_hash = vim.fn.systemlist("git rev-parse --short HEAD")[1]
+  if vim.v.shell_error ~= 0 or not commit_hash then
     commit_hash = "unknown"
   end
 
   return git_root, project_name, commit_hash
+end
+
+--- 锁定当前 commit hash
+--- 一旦锁定，后续操作将使用锁定的 commit 而非动态获取
+--- @param commit_hash string|nil 要锁定的 commit hash，nil 表示使用当前 commit
+--- @return string|nil 锁定的 commit hash，失败返回 nil
+function M.set_commit(commit_hash)
+  if commit_hash == nil then
+    vim.notify("AuditMind: No commit hash provided, locking to current commit.", vim.log.levels.INFO)
+  end
+
+  local _, _, current_commit_short = get_git_context() -- 获取当前 short hash
+  if commit_hash:len() > current_commit_short:len() then
+    commit_hash = commit_hash:sub(1, current_commit_short:len())
+  end
+
+  M.locked_commit = commit_hash
+
+  vim.notify(string.format("AuditMind: Commit locked to %s", M.locked_commit), vim.log.levels.INFO)
+
+  return M.locked_commit
+end
+
+--- 解除 commit 锁定
+function M.unlock_commit()
+  M.locked_commit = nil
+  vim.notify("AuditMind: Commit lock released", vim.log.levels.INFO)
+end
+
+--- 获取当前使用的 commit（优先使用锁定值）
+--- @return string commit hash
+function M.get_effective_commit()
+  if M.locked_commit then
+    return M.locked_commit
+  end
+  local _, _, commit = get_git_context()
+  return commit
 end
 
 --- 尝试载入审计思维图谱数据库
@@ -47,6 +73,11 @@ end
 --- 如果失败则静默返回 nil
 function M.TryLoadMind()
   local git_root, project_name, commit_hash = get_git_context()
+
+  -- 如果有锁定的 commit，使用锁定值
+  if M.locked_commit then
+    commit_hash = M.locked_commit
+  end
 
   -- 更新内部状态信息
   M.project_info = {
@@ -104,6 +135,11 @@ function M.CreateMind(opts)
   -- 允许用户覆盖项目名（可选）
   if opts.project_name then
     project_name = opts.project_name
+  end
+
+  -- 如果有锁定的 commit，使用锁定值
+  if M.locked_commit then
+    commit_hash = M.locked_commit
   end
 
   -- 更新内部状态信息

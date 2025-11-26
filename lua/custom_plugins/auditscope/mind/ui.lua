@@ -284,6 +284,125 @@ local function show_input_buffer(title, initial_value, on_submit, node_context)
   -- Note: Removed BufLeave auto-close to support modals (vim.ui.select) used in link actions
 end
 
+-- Pin window management
+local function create_pin_window()
+  if pin_win then
+    pin_win:unmount()
+  end
+
+  local pin_win = Popup({
+    enter = false,
+    focusable = false,
+    border = {
+      style = "rounded",
+      text = {
+        top = " 📌 Pinned ",
+        top_align = "center",
+      },
+    },
+    position = {
+      row = 1,
+      col = "100%",
+    },
+    size = {
+      width = 40,
+      height = 5,
+    },
+    anchor = "NE",
+    zindex = 50,
+  })
+
+  pin_win:mount()
+
+  -- Don't close on BufLeave - keep it persistent
+  return pin_win
+end
+
+local function update_pin_content()
+  if not pin_win or not pinned_node then
+    return
+  end
+
+  local lines = {}
+  local icon = config.icons[pinned_node.type] or "🔹"
+  table.insert(lines, string.format("%s %s", icon, pinned_node.type:upper()))
+  table.insert(lines, "")
+
+  -- Sanitize and wrap text to fit window width
+  local text = sanitize_text(pinned_node.text) or ""
+  local max_width = 38
+  for i = 1, #text, max_width do
+    local line = text:sub(i, i + max_width - 1)
+    -- Ensure no newlines in each line segment
+    line = line:gsub("[\r\n]+", " ")
+    table.insert(lines, line)
+  end
+
+  -- Ensure all lines are valid strings without newlines
+  for idx, line in ipairs(lines) do
+    lines[idx] = tostring(line):gsub("[\r\n]+", " ")
+  end
+
+  vim.api.nvim_buf_set_lines(pin_win.bufnr, 0, -1, false, lines)
+end
+
+function M.pin_node()
+  local nodes = db.get_nodes()
+  local items = {}
+  local node_map = {}
+
+  for _, n in ipairs(nodes) do
+    if n.type == "question" or n.type == "hypothesis" then
+      local label = string.format(
+        "%s %s (%s:%s)",
+        config.icons[n.type],
+        n.text,
+        vim.fn.fnamemodify(n.file, ":t"),
+        format_line_range(n.start_line, n.end_line)
+      )
+      table.insert(items, label)
+      node_map[label] = n
+    end
+  end
+
+  if #items == 0 then
+    print("No questions or hypotheses to pin.")
+    return
+  end
+
+  vim.ui.select(items, { prompt = "Select node to pin:" }, function(choice)
+    if not choice then
+      return
+    end
+
+    local pinned_node = node_map[choice]
+    create_pin_window()
+    update_pin_content()
+    print("Pinned: " .. pinned_node.text)
+  end)
+end
+
+function M.unpin_node()
+  if pin_win then
+    pin_win:unmount()
+    pin_win = nil
+  end
+  pinned_node = nil
+  print("Unpinned node.")
+end
+
+function M.toggle_pin()
+  if pin_win and pinned_node then
+    M.unpin_node()
+  else
+    M.pin_node()
+  end
+end
+
+function M.get_pinned_node()
+  return pinned_node
+end
+
 -- 1. 创建新节点
 function M.create_node(type)
   local ctx = get_context()
