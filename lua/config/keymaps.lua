@@ -27,8 +27,8 @@ vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move selected block down"
 vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv", { desc = "Move selected block up", silent = true })
 
 -- Move up and down half a page and center the cursor
-vim.keymap.set("n", "<C-j>", "zt", { desc = "Top this line" })
-vim.keymap.set("n", "<C-k>", "zb", { desc = "Bottom this line" })
+vim.keymap.set("n", "zk", "zt", { desc = "Top this line" })
+vim.keymap.set("n", "zq", "zb", { desc = "Bottom this line" })
 
 -- Resize window using <Alt+Arrow> keys
 vim.keymap.set("n", "<M-Left>", "<cmd>vertical resize -2<cr>", { desc = "Decrease Window Width" })
@@ -222,37 +222,37 @@ vim.keymap.set("x", "<leader>cr", clear_markdown_formatting, {
   desc = "Clear Markdown inline code and bold formatting",
 })
 
-vim.keymap.del({ "n", "v" }, "<leader>n")
+-- vim.keymap.del({ "n", "v" }, "<leader>n")
 
 local audit_mind = require("custom_plugins.auditscope.mind")
-vim.keymap.set({ "n", "v" }, "<leader>3h", function()
+vim.keymap.set({ "n", "v" }, "<leader>oh", function()
   audit_mind.new_node("hypothesis")
 end, { desc = "Audit: New Hypothesis" })
 
-vim.keymap.set({ "n", "v" }, "<leader>3f", function()
+vim.keymap.set({ "n", "v" }, "<leader>of", function()
   audit_mind.new_node("fact")
 end, { desc = "Audit: New Fact" })
 
-vim.keymap.set({ "n", "v" }, "<leader>3i", function()
+vim.keymap.set({ "n", "v" }, "<leader>oi", function()
   audit_mind.new_node("insight")
 end, { desc = "Audit: New Insight" })
 
-vim.keymap.set({ "n", "v" }, "<leader>3q", function()
+vim.keymap.set({ "n", "v" }, "<leader>oq", function()
   audit_mind.new_node("question")
 end, { desc = "Audit: New Question" })
 
-vim.keymap.set("n", "<leader>3M", function()
+vim.keymap.set("n", "<leader>oM", function()
   audit_mind.open_dashboard()
 end, { desc = "Audit: Mind Map" })
 
-vim.keymap.set("n", "<leader>3m", function()
+vim.keymap.set("n", "<leader>om", function()
   audit_mind.modify_node()
 end, { desc = "Audit: Modify Node" })
 
-vim.keymap.set("n", "<leader>3d", function()
+vim.keymap.set("n", "<leader>od", function()
   audit_mind.delete_node()
 end, { desc = "Audit: Delete Node" })
 
-vim.keymap.set("n", "<leader>3l", function()
+vim.keymap.set("n", "<leader>ol", function()
   audit_mind.select_commit()
 end, { desc = "Audit: Select Commit" })
