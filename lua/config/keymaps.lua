@@ -26,6 +26,10 @@ vim.keymap.set("n", "<leader>sA", function() end)
 vim.keymap.set("v", "J", ":m '>+1<CR>gv=gv", { desc = "Move selected block down", silent = true })
 vim.keymap.set("v", "K", ":m '<-2<CR>gv=gv", { desc = "Move selected block up", silent = true })
 
+-- Move up and down half a page and center the cursor
+vim.keymap.set("n", "<C-j>", "zt", { desc = "Top this line" })
+vim.keymap.set("n", "<C-k>", "zb", { desc = "Bottom this line" })
+
 -- Resize window using <Alt+Arrow> keys
 vim.keymap.set("n", "<M-Left>", "<cmd>vertical resize -2<cr>", { desc = "Decrease Window Width" })
 vim.keymap.set("n", "<M-Down>", "<cmd>resize +2<cr>", { desc = "Increase Window Height" })
@@ -217,6 +221,8 @@ vim.keymap.set("x", "<leader>cr", clear_markdown_formatting, {
   silent = true,
   desc = "Clear Markdown inline code and bold formatting",
 })
+
+vim.keymap.del({ "n", "v" }, "<leader>n")
 
 local audit_mind = require("custom_plugins.auditscope.mind")
 vim.keymap.set({ "n", "v" }, "<leader>3h", function()
