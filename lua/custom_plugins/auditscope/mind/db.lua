@@ -2,7 +2,7 @@ local Path = require("plenary.path")
 local M = {}
 
 -- 初始状态为空
-M.data = { nodes = {}, edges = {} }
+M.data = { nodes = {}, edges = {}, glance = {} }
 M.file_path = nil
 M.project_info = {
   root = nil,
@@ -95,7 +95,7 @@ function M.try_select_mind()
       table.insert(options, {
         project = p_name,
         commit = c_hash,
-        file = file
+        file = file,
       })
     end
   end
@@ -116,16 +116,20 @@ function M.try_select_mind()
       -- 锁定并加载选中的 commit
       M.set_commit(choice.commit)
       if M.TryLoadMind() then
-         vim.notify(string.format("Loaded mind map for commit: %s", choice.commit), vim.log.levels.INFO)
-         
-         -- 刷新 UI 组件 (安全调用)
-         local ok_signs, signs = pcall(require, "auditscope.mind.signs")
-         if ok_signs then signs.refresh() end
-         
-         local ok_ui, ui = pcall(require, "auditscope.mind.ui")
-         if ok_ui then ui.refresh_dashboard() end
+        vim.notify(string.format("Loaded mind map for commit: %s", choice.commit), vim.log.levels.INFO)
+
+        -- 刷新 UI 组件 (安全调用)
+        local ok_signs, signs = pcall(require, "auditscope.mind.signs")
+        if ok_signs then
+          signs.refresh()
+        end
+
+        local ok_ui, ui = pcall(require, "auditscope.mind.ui")
+        if ok_ui then
+          ui.refresh_dashboard()
+        end
       else
-         vim.notify("Failed to load selected mind map.", vim.log.levels.ERROR)
+        vim.notify("Failed to load selected mind map.", vim.log.levels.ERROR)
       end
     end
   end)
@@ -160,8 +164,7 @@ function M.TryLoadMind()
   local filename = string.format("%s_%s.json", project_name, commit_hash)
   M.file_path = Path.joinpath(storage_dir, filename)
 
-  -- 检查文件是否存在，不存在则静默失败
-  if not M.file_path:exists() then
+  if not M.file_path then
     M.file_path = nil -- Reset file_path if it doesn't exist
     M.project_info = { -- Also reset project_info if file not found
       root = nil,
@@ -247,10 +250,10 @@ function M.load()
     if ok then
       M.data = decoded
     else
-      M.data = { nodes = {}, edges = {} }
+      M.data = { nodes = {}, edges = {}, glance = {} }
     end
   else
-    M.data = { nodes = {}, edges = {} }
+    M.data = { nodes = {}, edges = {}, glance = {} }
   end
 end
 
@@ -390,6 +393,38 @@ function M.delete_node(node_id)
     return true
   end
   return false -- Node not found or no changes made
+end
+
+function M.update_glance(file, line, count, skip_save)
+  if not ensure_initialized() then
+    return
+  end
+  if not M.data.glance then
+    M.data.glance = {}
+  end
+  if not M.data.glance[file] then
+    M.data.glance[file] = {}
+  end
+
+  -- Save line as string key for consistent JSON object behavior
+  local line_key = tostring(line)
+
+  if count > 0 then
+    M.data.glance[file][line_key] = count
+  else
+    M.data.glance[file][line_key] = nil
+  end
+
+  if not skip_save then
+    M.save()
+  end
+end
+
+function M.get_glance(file)
+  if not M.data.glance then
+    return {}
+  end
+  return M.data.glance[file] or {}
 end
 
 return M

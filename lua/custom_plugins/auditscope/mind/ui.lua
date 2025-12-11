@@ -4,6 +4,7 @@ local Popup = require("nui.popup")
 local NuiTree = require("nui.tree")
 local event = require("nui.utils.autocmd").event
 local db = require("custom_plugins.auditscope.mind.db")
+local uv = vim.uv or vim.loop -- Add this line
 
 local M = {}
 local dashboard_win = nil
@@ -20,7 +21,12 @@ function M.setup(user_config)
       refutes = "❌",
       relates = "🔗",
     },
+    auto_trace = false,
   }, user_config or {})
+
+  if config.auto_trace then
+    M.set_auto_trace(true)
+  end
 end
 
 local function sanitize_text(text)
@@ -765,5 +771,205 @@ function M.modify_node()
     end
   end)
 end
+
+-- 6. Attention / Glance Tracking (tqdm style)
+local glance_ns = vim.api.nvim_create_namespace("auditscope_glance")
+local PARTIAL_BLOCKS = { "▏", "▎", "▍", "▌", "▋", "▊", "▉" }
+local MAX_GLANCE_LEVEL = 10
+
+local function get_file_max_glance(file)
+  local data = db.get_glance(file)
+  local max_val = 20 -- 基础阈值，避免初期数据较少时进度条波动过大
+  for _, count in pairs(data) do
+    if count > max_val then
+      max_val = count
+    end
+  end
+  return max_val
+end
+
+local function update_glance_extmark(bufnr, file, line, count)
+  vim.api.nvim_buf_clear_namespace(bufnr, glance_ns, line - 1, line)
+  if count <= 0 then
+    return
+  end
+
+  -- Calculate scale based on the file's max activity (min 20)
+  local max_level = get_file_max_glance(file)
+  max_level = math.max(max_level, count)
+
+  -- Use a fixed width (e.g., 25 chars) to ensure consistent precision measurement
+  local width = 25
+  -- Calculate ratio against the actual max_level, not a hardcoded constant
+  local ratio = count / max_level
+
+  if ratio > 1.0 then
+    ratio = 1.0
+  end
+
+  -- Calculate total 1/8th ticks
+  local total_ticks = math.floor(ratio * width * 8)
+  local full_blocks = math.floor(total_ticks / 8)
+  local remainder = total_ticks % 8
+
+  local bar_str = string.rep("█", full_blocks)
+  if remainder > 0 then
+    bar_str = bar_str .. PARTIAL_BLOCKS[remainder]
+  end
+
+  local current_len = full_blocks + (remainder > 0 and 1 or 0)
+  local empty = width - current_len
+  local empty_str = string.rep(" ", math.max(0, empty))
+
+  local h_group = "String" -- Greenish usually
+  if ratio > 0.8 then
+    h_group = "Error" -- Red/High attention
+  elseif ratio > 0.4 then
+    h_group = "WarningMsg" -- Yellow/Orange
+  end
+
+  local virt_text = {
+    { " ▕", "Comment" },
+    { bar_str, h_group },
+    { empty_str, "Comment" },
+    { string.format("▏%4d", count), "Comment" },
+  }
+
+  vim.api.nvim_buf_set_extmark(bufnr, glance_ns, line - 1, 0, {
+    virt_text = virt_text,
+    virt_text_pos = "eol_right_align",
+    hl_mode = "blend",
+  })
+end
+
+function M.increment_glance(skip_save)
+  local file = vim.fn.expand("%:p")
+  local line = vim.api.nvim_win_get_cursor(0)[1]
+  local bufnr = vim.api.nvim_get_current_buf()
+
+  local current_data = db.get_glance(file)
+
+  -- keys are strings in JSON/DB
+  local current_count = current_data[tostring(line)] or 0
+  local new_count = current_count + 1
+
+  db.update_glance(file, line, new_count, skip_save)
+  update_glance_extmark(bufnr, file, line, new_count)
+end
+
+function M.decrement_glance()
+  local file = vim.fn.expand("%:p")
+  local line = vim.api.nvim_win_get_cursor(0)[1]
+  local bufnr = vim.api.nvim_get_current_buf()
+
+  local current_data = db.get_glance(file)
+  local current_count = current_data[tostring(line)] or 0
+
+  if current_count > 0 then
+    local new_count = current_count - 1
+    db.update_glance(file, line, new_count)
+    update_glance_extmark(bufnr, file, line, new_count)
+  end
+end
+
+function M.toggle_auto_trace()
+  M.set_auto_trace(not AUTO_TRACE_ENABLED)
+end
+
+function M.set_auto_trace(enabled)
+  AUTO_TRACE_ENABLED = enabled
+  local group_name = "AuditScopeAutoTrace"
+  vim.api.nvim_create_augroup(group_name, { clear = true })
+
+  if enabled then
+    -- Save DB on specific events to prevent data loss when skip_save is used
+    vim.api.nvim_create_autocmd({ "BufLeave", "FocusLost", "VimLeavePre" }, {
+      group = group_name,
+      callback = function()
+        db.save()
+      end,
+    })
+
+    -- Trace logic with debounce (200ms)
+    vim.api.nvim_create_autocmd("CursorMoved", {
+      group = group_name,
+      callback = function()
+        if TRACE_TIMER then
+          TRACE_TIMER:stop()
+          if not TRACE_TIMER:is_closing() then
+            TRACE_TIMER:close()
+          end
+        end
+
+        TRACE_TIMER = uv.new_timer()
+        TRACE_TIMER:start(
+          200,
+          0,
+          vim.schedule_wrap(function()
+            if not AUTO_TRACE_ENABLED then
+              return
+            end
+            local file = vim.fn.expand("%:p")
+            local line = vim.api.nvim_win_get_cursor(0)[1]
+            local pos_key = file .. ":" .. line
+
+            -- Only increment if we have settled on a new line/file position
+            if pos_key ~= LAST_TRACE_POS then
+              LAST_TRACE_POS = pos_key
+              -- Skip immediate save for performance
+              M.increment_glance(true)
+            end
+
+            if TRACE_TIMER and not TRACE_TIMER:is_closing() then
+              TRACE_TIMER:close()
+            end
+            TRACE_TIMER = nil
+          end)
+        )
+      end,
+    })
+    print("AuditScope: Auto Trace Enabled")
+  else
+    if TRACE_TIMER then
+      TRACE_TIMER:stop()
+      if not TRACE_TIMER:is_closing() then
+        TRACE_TIMER:close()
+      end
+      TRACE_TIMER = nil
+    end
+    print("AuditScope: Auto Trace Disabled")
+  end
+end
+
+-- Restore glance marks when entering a buffer
+vim.api.nvim_create_autocmd({ "BufEnter", "BufWinEnter" }, {
+  group = vim.api.nvim_create_augroup("AuditScopeGlanceRestore", { clear = true }),
+  callback = function(args)
+    local file = vim.api.nvim_buf_get_name(args.buf)
+    if not file or file == "" then
+      return
+    end
+
+    if not (file:match("%.sol$") or file:match("%.rs$")) then
+      return
+    end
+
+    local data = db.get_glance(file)
+
+    local max_val = 20
+    for _, count in pairs(data) do
+      if count > max_val then
+        max_val = count
+      end
+    end
+
+    for line_str, count in pairs(data) do
+      local line = tonumber(line_str)
+      if line then
+        update_glance_extmark(args.buf, file, line, count)
+      end
+    end
+  end,
+})
 
 return M

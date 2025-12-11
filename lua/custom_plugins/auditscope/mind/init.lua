@@ -47,6 +47,8 @@ function M.setup(opts)
   M.unpin_node = M.ui.unpin_node
   M.toggle_pin = M.ui.toggle_pin
   M.select_commit = M.db.try_select_mind
+  M.increment_glance = M.ui.increment_glance
+  M.decrement_glance = M.ui.decrement_glance
 
   vim.api.nvim_create_user_command("AuditCreateMind", function()
     M.db.CreateMind()
@@ -68,6 +70,10 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("AuditUnpin", function()
     M.ui.unpin_node()
   end, { desc = "Unpin the current pinned node" })
+
+  vim.api.nvim_create_user_command("AuditToggleTrace", function()
+    M.ui.toggle_auto_trace()
+  end, { desc = "Toggle auto trace for glance counting" })
 
   vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
     callback = function()

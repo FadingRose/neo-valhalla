@@ -256,3 +256,11 @@ end, { desc = "Audit: Delete Node" })
 vim.keymap.set("n", "<leader>ol", function()
   audit_mind.select_commit()
 end, { desc = "Audit: Select Commit" })
+
+vim.keymap.set("n", "=", function()
+  audit_mind.increment_glance()
+end, { desc = "Audit: Increment Glance (+)" })
+
+vim.keymap.set("n", "-", function()
+  audit_mind.decrement_glance()
+end, { desc = "Audit: Decrement Glance (-)" })

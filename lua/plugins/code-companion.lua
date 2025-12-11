@@ -634,6 +634,34 @@ return {
           },
         })
       end,
+      deepseek_3_2 = function()
+        return require("codecompanion.adapters").extend("openai_compatible", {
+          env = {
+            url = "https://openrouter.ai/api",
+            api_key = "cmd:echo $OPENROUTER_API_KEY",
+            chat_url = "/v1/chat/completions",
+          },
+          schema = {
+            model = {
+              default = "deepseek/deepseek-v3.2",
+            },
+          },
+        })
+      end,
+      deepseek_3_2_SE = function()
+        return require("codecompanion.adapters").extend("openai_compatible", {
+          env = {
+            url = "https://openrouter.ai/api",
+            api_key = "cmd:echo $OPENROUTER_API_KEY",
+            chat_url = "/v1/chat/completions",
+          },
+          schema = {
+            model = {
+              default = "deepseek/deepseek-v3.2-speciale",
+            },
+          },
+        })
+      end,
       openrouter_pro = function()
         return require("codecompanion.adapters").extend("openai_compatible", {
           env = {
