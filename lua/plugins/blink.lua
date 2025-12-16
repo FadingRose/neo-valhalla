@@ -7,8 +7,8 @@ return {
     },
     keymap = {
       ["<CR>"] = { "select_and_accept", "fallback" },
-      ["<Tab>"] = { "select_next", "fallback" },
-      ["<S-Tab>"] = { "select_prev", "fallback" },
+      ["<S-w>"] = { "select_next", "fallback" },
+      ["<S-q>"] = { "select_prev", "fallback" },
     },
   },
 }

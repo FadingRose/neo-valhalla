@@ -75,6 +75,16 @@ function M.setup(opts)
     M.ui.toggle_auto_trace()
   end, { desc = "Toggle auto trace for glance counting" })
 
+  M.clean_glance = M.ui.clean_glance
+  vim.api.nvim_create_user_command("AuditCleanGlance", function()
+    M.ui.clean_glance()
+  end, { desc = "Reset glance counts for all nodes" })
+
+  M.toggle_show_glance = M.ui.toggle_show_glance
+  vim.api.nvim_create_user_command("AuditToggleShowGlance", function()
+    M.ui.toggle_show_glance()
+  end, { desc = "Toggle display of glance traces" })
+
   vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, {
     callback = function()
       local filetype = vim.bo.filetype

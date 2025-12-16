@@ -104,7 +104,7 @@ return {
                       if vim.fn.system("git -C " .. vim.fn.escape(new_path, " ") .. " rev-parse --is-inside-work-tree 2>/dev/null") == "true\n" then
                         require("telescope.builtin").find_files({
                             cwd = new_path,
-                            find_command = { "git", "ls-files", "--", "*.sol", "*.rs" }
+                            find_command = { "git", "ls-files", "--", "*.sol", "*.rs", "*.go"}
                         })
                       else
                         -- If not a git repo, recursively select from subdirectories

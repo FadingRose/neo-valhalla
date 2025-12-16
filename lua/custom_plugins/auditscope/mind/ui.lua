@@ -22,6 +22,7 @@ function M.setup(user_config)
       relates = "🔗",
     },
     auto_trace = false,
+    show_glance = false,
   }, user_config or {})
 
   if config.auto_trace then
@@ -789,6 +790,9 @@ local function get_file_max_glance(file)
 end
 
 local function update_glance_extmark(bufnr, file, line, count)
+  if not config.show_glance then
+    return
+  end
   vim.api.nvim_buf_clear_namespace(bufnr, glance_ns, line - 1, line)
   if count <= 0 then
     return
@@ -939,6 +943,33 @@ function M.set_auto_trace(enabled)
     end
     print("AuditScope: Auto Trace Disabled")
   end
+end
+
+function M.clean_glance()
+  local file = vim.fn.expand("%:p")
+  db.clean_glance(file)
+  local bufnr = vim.api.nvim_get_current_buf()
+  vim.api.nvim_buf_clear_namespace(bufnr, glance_ns, 0, -1)
+end
+
+function M.toggle_show_glance()
+  config.show_glance = not config.show_glance
+  local file = vim.fn.expand("%:p")
+  local bufnr = vim.api.nvim_get_current_buf()
+  if config.show_glance then
+    -- Reapply marks for current file
+    local data = db.get_glance(file)
+    for line_str, count in pairs(data) do
+      local line = tonumber(line_str)
+      if line then
+        update_glance_extmark(bufnr, file, line, count)
+      end
+    end
+  else
+    -- Clear all glance marks in buffer
+    vim.api.nvim_buf_clear_namespace(bufnr, glance_ns, 0, -1)
+  end
+  print("Glance display " .. (config.show_glance and "enabled" or "disabled"))
 end
 
 -- Restore glance marks when entering a buffer

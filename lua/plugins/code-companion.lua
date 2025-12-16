@@ -578,188 +578,102 @@ return {
       },
     },
     strategies = {
-      chat = { adapter = "openrouter_flash" },
+      chat = { adapter = "openrouter_pro_3" },
       inline = { adapter = "openrouter_flash" },
-      agent = { adapter = "openrouter_flash" },
+      agent = { adapter = "openrouter_pro_3" },
     },
     adapters = {
-      qwen_cn_to_en = function()
-        return require("codecompanion.adapters").extend("openai_compatible", {
-          env = {
-            url = "https://dashscope.aliyuncs.com/compatible-mode",
-            api_key = vim.fn.getenv("DASHSCOPE_API_KEY"),
-            chat_url = "/v1/chat/completions",
-          },
-          schema = {
-            model = {
-              default = "qwen-mt-turbo",
+      http = {
+        openrouter_pro_3 = function()
+          return require("codecompanion.adapters").extend("openai_compatible", {
+            env = {
+              url = "https://openrouter.ai/api",
+              api_key = "cmd:echo $OPENROUTER_API_KEY",
+              chat_url = "/v1/chat/completions",
             },
-            translation_options = {
-              source_language = "Chinese",
-              target_lang = "English",
-            },
-          },
-        })
-      end,
-      iflow = function()
-        return require("codecompanion.adapters").extend("openai_compatible", {
-          env = {
-            url = "https://apis.iflow.cn/v1",
-            api_key = "cmd:echo $IFLOW_API_KEY",
-            chat_url = "/chat/completions",
-          },
-          schema = {
-            model = {
-              default = "qwen3-coder",
-              choices = {
-                "deepseek-v3.1",
-                "qwen3-coder",
-                "kimi-k2",
+            schema = {
+              model = {
+                default = "google/gemini-3-pro-preview",
               },
             },
-          },
-        })
-      end,
-      openrouter_pro_3 = function()
-        return require("codecompanion.adapters").extend("openai_compatible", {
-          env = {
-            url = "https://openrouter.ai/api",
-            api_key = "cmd:echo $OPENROUTER_API_KEY",
-            chat_url = "/v1/chat/completions",
-          },
-          schema = {
-            model = {
-              default = "google/gemini-3-pro-preview",
+          })
+        end,
+        grok_code_fast_1 = function()
+          return require("codecompanion.adapters").extend("openai_compatible", {
+            env = {
+              url = "https://openrouter.ai/api",
+              api_key = "cmd:echo $OPENROUTER_API_KEY",
+              chat_url = "/v1/chat/completions",
             },
-          },
-        })
-      end,
-      deepseek_3_2 = function()
-        return require("codecompanion.adapters").extend("openai_compatible", {
-          env = {
-            url = "https://openrouter.ai/api",
-            api_key = "cmd:echo $OPENROUTER_API_KEY",
-            chat_url = "/v1/chat/completions",
-          },
-          schema = {
-            model = {
-              default = "deepseek/deepseek-v3.2",
-            },
-          },
-        })
-      end,
-      deepseek_3_2_SE = function()
-        return require("codecompanion.adapters").extend("openai_compatible", {
-          env = {
-            url = "https://openrouter.ai/api",
-            api_key = "cmd:echo $OPENROUTER_API_KEY",
-            chat_url = "/v1/chat/completions",
-          },
-          schema = {
-            model = {
-              default = "deepseek/deepseek-v3.2-speciale",
-            },
-          },
-        })
-      end,
-      openrouter_pro = function()
-        return require("codecompanion.adapters").extend("openai_compatible", {
-          env = {
-            url = "https://openrouter.ai/api",
-            api_key = "cmd:echo $OPENROUTER_API_KEY",
-            chat_url = "/v1/chat/completions",
-          },
-          schema = {
-            model = {
-              default = "google/gemini-2.5-pro-preview",
-            },
-          },
-        })
-      end,
-
-      glm = function()
-        return require("codecompanion.adapters").extend("openai_compatible", {
-          env = {
-            url = "https://openrouter.ai/api",
-            api_key = "cmd:echo $OPENROUTER_API_KEY",
-            -- api_key = vim.fn.getenv("OPENROUTER_API_KEY"),
-            chat_url = "/v1/chat/completions",
-          },
-          schema = {
-            model = {
-              default = "z-ai/glm-4.6:exacto",
-            },
-          },
-        })
-      end,
-      openrouter_flash = function()
-        return require("codecompanion.adapters").extend("openai_compatible", {
-          env = {
-            url = "https://openrouter.ai/api",
-            api_key = "cmd:echo $OPENROUTER_API_KEY",
-            -- api_key = vim.fn.getenv("OPENROUTER_API_KEY"),
-            chat_url = "/v1/chat/completions",
-          },
-          schema = {
-            model = {
-              default = "google/gemini-2.5-flash",
-              choices = {
-                "google/gemini-2.5-flash",
-                "google/gemini-2.5-flash-lite-preview-06-17",
+            schema = {
+              model = {
+                default = "x-ai/grok-code-fast-1",
               },
             },
-          },
-        })
-      end,
-
-      siliconflow_v3 = function()
-        return require("codecompanion.adapters").extend("openai_compatible", {
-          opts = {
-            languages = "Chinese",
-          },
-          env = {
-            url = "https://api.siliconflow.cn",
-            api_key = function()
-              local key = vim.fn.getenv("SILICONFLOW_API_KEY")
-              return key
-            end,
-            chat_url = "/v1/chat/completions",
-          },
-          schema = {
-            model = {
-              default = "Pro/deepseek-ai/DeepSeek-V3",
+          })
+        end,
+        deepseek_3_2 = function()
+          return require("codecompanion.adapters").extend("openai_compatible", {
+            env = {
+              url = "https://openrouter.ai/api",
+              api_key = "cmd:echo $OPENROUTER_API_KEY",
+              chat_url = "/v1/chat/completions",
             },
-          },
-        })
-      end,
-      siliconflow_r1 = function()
-        return require("codecompanion.adapters").extend("deepseek", {
-          opts = {
-            languages = "Chinese",
-          },
-          name = "siliconflow_r1",
-          url = "https://api.siliconflow.cn/v1/chat/completions",
-          env = {
-            api_key = function()
-              local key = vim.fn.getenv("SILICONFLOW_API_KEY")
-              return key
-            end,
-            -- chat_url = "/v1/chat/completions",
-          },
-          schema = {
-            model = {
-              default = "Pro/deepseek-ai/DeepSeek-R1",
-              choices = {
-                ["Pro/deepseek-ai/DeepSeek-R1"] = { opts = { can_reason = true } },
-                "Pro/deepseek-ai/DeepSeek-V3",
+            schema = {
+              model = {
+                default = "deepseek/deepseek-v3.2",
               },
             },
-            temperature = {
-              default = 0.3,
+          })
+        end,
+        deepseek_3_2_SE = function()
+          return require("codecompanion.adapters").extend("openai_compatible", {
+            env = {
+              url = "https://openrouter.ai/api",
+              api_key = "cmd:echo $OPENROUTER_API_KEY",
+              chat_url = "/v1/chat/completions",
             },
-          },
-        })
-      end,
+            schema = {
+              model = {
+                default = "deepseek/deepseek-v3.2-speciale",
+              },
+            },
+          })
+        end,
+        glm = function()
+          return require("codecompanion.adapters").extend("openai_compatible", {
+            env = {
+              url = "https://openrouter.ai/api",
+              api_key = "cmd:echo $OPENROUTER_API_KEY",
+              -- api_key = vim.fn.getenv("OPENROUTER_API_KEY"),
+              chat_url = "/v1/chat/completions",
+            },
+            schema = {
+              model = {
+                default = "z-ai/glm-4.6:exacto",
+              },
+            },
+          })
+        end,
+        openrouter_flash = function()
+          return require("codecompanion.adapters").extend("openai_compatible", {
+            env = {
+              url = "https://openrouter.ai/api",
+              api_key = "cmd:echo $OPENROUTER_API_KEY",
+              chat_url = "/v1/chat/completions",
+            },
+            schema = {
+              model = {
+                default = "google/gemini-2.5-flash",
+                choices = {
+                  "google/gemini-2.5-flash",
+                  "google/gemini-2.5-flash-preview-09-2025",
+                },
+              },
+            },
+          })
+        end,
+      },
     },
 
     extensions = {
@@ -788,9 +702,9 @@ return {
           auto_generate_title = true,
           title_generation_opts = {
             ---Adapter for generating titles (defaults to current chat adapter)
-            adapter = "iflow", -- "copilot"
+            adapter = "openrouter_flash", -- "copilot"
             ---Model for generating titles (defaults to current chat model)
-            model = "qwen3-coder", -- "gpt-4o"
+            model = "google/gemini-2.5-flash", -- "gpt-4o"
             ---Number of user prompts after which to refresh the title (0 to disable)
             refresh_every_n_prompts = 3, -- e.g., 3 to refresh after every 3rd user prompt
             ---Maximum number of times to refresh the title (default: 3)

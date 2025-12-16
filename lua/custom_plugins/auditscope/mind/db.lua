@@ -427,4 +427,14 @@ function M.get_glance(file)
   return M.data.glance[file] or {}
 end
 
+function M.clean_glance(file)
+  if not ensure_initialized() then
+    return
+  end
+  if M.data.glance and M.data.glance[file] then
+    M.data.glance[file] = {}
+    M.save()
+  end
+end
+
 return M
