@@ -41,6 +41,8 @@ vim.cmd([[
 ]])
 
 require("custom_plugins.auditscope.mind").setup({})
+
+-- require("dbee").install("curl")
 -- set filetype for .tx files
 -- vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
 --   pattern = { "*.trace", "*.txlog", "*.tx" }, -- 你希望关联的文件后缀名

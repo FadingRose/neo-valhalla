@@ -81,7 +81,7 @@ return {
           stop_context_insertion = true,
           adapter = {
             name = "openrouter_flash",
-            model = "google/gemini-2.5-flash",
+            model = "google/gemini-3-flash-preview",
           },
         },
 
@@ -129,8 +129,8 @@ return {
           user_prompt = false,
           stop_context_insertion = true,
           adapter = {
-            name = "openrouter_pro",
-            model = "google/gemini-2.5-pro-preview",
+            name = "openrouter_pro_3",
+            model = "google/gemini-3-pro-preview",
           },
         },
         prompts = {
@@ -206,7 +206,7 @@ return {
           stop_context_insertion = true,
           adapter = {
             name = "openrouter_flash",
-            model = "google/gemini-2.5-flash",
+            model = "google/gemini-3-flash-preview",
           },
         },
         prompts = {
@@ -266,7 +266,7 @@ return {
           stop_context_insertion = true,
           adapter = {
             name = "openrouter_flash",
-            model = "google/gemini-2.5-flash",
+            model = "google/gemini-3-flash-preview",
           },
         },
         prompts = {
@@ -578,7 +578,7 @@ return {
       },
     },
     strategies = {
-      chat = { adapter = "openrouter_pro_3" },
+      chat = { adapter = "openrouter_flash" },
       inline = { adapter = "openrouter_flash" },
       agent = { adapter = "openrouter_pro_3" },
     },
@@ -664,10 +664,10 @@ return {
             },
             schema = {
               model = {
-                default = "google/gemini-2.5-flash",
+                default = "google/gemini-3-flash-preview",
                 choices = {
-                  "google/gemini-2.5-flash",
-                  "google/gemini-2.5-flash-preview-09-2025",
+                  "google/gemini-3-flash-preview",
+                  "google/gemini-3-flash-preview-preview-09-2025",
                 },
               },
             },
@@ -704,7 +704,7 @@ return {
             ---Adapter for generating titles (defaults to current chat adapter)
             adapter = "openrouter_flash", -- "copilot"
             ---Model for generating titles (defaults to current chat model)
-            model = "google/gemini-2.5-flash", -- "gpt-4o"
+            model = "google/gemini-3-flash-preview", -- "gpt-4o"
             ---Number of user prompts after which to refresh the title (0 to disable)
             refresh_every_n_prompts = 3, -- e.g., 3 to refresh after every 3rd user prompt
             ---Maximum number of times to refresh the title (default: 3)
