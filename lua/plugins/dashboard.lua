@@ -127,13 +127,13 @@ return {
           {
             action = function()
               local original_dir = vim.fn.getcwd() -- Store original directory
-              vim.fn.chdir(vim.fn.expand("~/smart-contract-poc/"))
+              vim.fn.chdir(vim.fn.expand("~/web3-security-vault/"))
 
               local function select_and_open(current_path)
                 vim.ui.select(
                   vim.fn.split(vim.fn.system("ls -1F " .. vim.fn.escape(current_path, " ") .. " | grep '/' | sed 's/\\///'"), "\n"), -- Only show directories, exclude .source
                   {
-                    prompt = "Select an audit folder:",
+                    prompt = "Select a vault:",
                     format_item = function(item)
                       return item
                     end,

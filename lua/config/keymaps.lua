@@ -264,3 +264,48 @@ end, { desc = "Audit: Increment Glance (+)" })
 vim.keymap.set("n", "-", function()
   audit_mind.decrement_glance()
 end, { desc = "Audit: Decrement Glance (-)" })
+
+local function render_markdown_to_html()
+  local buf = vim.api.nvim_get_current_buf()
+  -- local file_path = vim.api.nvim_buf_get_name(buf)
+  local tmp_md = os.tmpname() .. ".md"
+  local tmp_html = os.tmpname() .. ".html"
+
+  -- Write current buffer content to a temporary markdown file
+  local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local f = io.open(tmp_md, "w")
+  if f then
+    f:write(table.concat(lines, "\n"))
+    f:close()
+  end
+
+  local pandoc_args = {
+    "pandoc",
+    "--mathjax",
+    "--highlight-style=pygments",
+    "-s",
+    vim.fn.shellescape(tmp_md),
+    "-V",
+    "header-includes='<style>body { max-width: 50em; margin: auto; padding: 2em; }</style>'",
+    "-o",
+    vim.fn.shellescape(tmp_html),
+  }
+
+  local cmd = table.concat(pandoc_args, " ") .. " && open " .. vim.fn.shellescape(tmp_html)
+
+  vim.fn.jobstart(cmd, {
+    on_exit = function(_, code)
+      if code ~= 0 then
+        vim.notify("Markdown rendering failed", vim.log.levels.ERROR)
+      end
+      -- Clean up the temporary markdown file; HTML remains for the browser
+      os.remove(tmp_md)
+    end,
+  })
+end
+
+vim.api.nvim_create_user_command(
+  "RenderMarkdown",
+  render_markdown_to_html,
+  { desc = "Render Markdown to HTML and open" }
+)
