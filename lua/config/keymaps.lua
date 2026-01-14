@@ -273,6 +273,7 @@ local function render_markdown_to_html()
 
   -- Write current buffer content to a temporary markdown file
   local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+  local working_dir = vim.fn.expand("%:p:h")
   local f = io.open(tmp_md, "w")
   if f then
     f:write(table.concat(lines, "\n"))
@@ -283,6 +284,8 @@ local function render_markdown_to_html()
     "pandoc",
     "--mathjax",
     "--highlight-style=pygments",
+    "--embed-resources", -- Embed images into the HTML
+    "--resource-path=" .. vim.fn.shellescape(working_dir .. ":."), -- Search in working dir and sub-paths
     "-s",
     vim.fn.shellescape(tmp_md),
     "-V",
