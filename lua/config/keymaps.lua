@@ -309,3 +309,8 @@ vim.api.nvim_create_user_command(
   render_markdown_to_html,
   { desc = "Render Markdown to HTML and open" }
 )
+
+vim.keymap.set("n", "<leader>tc", function()
+  vim.cmd("vsplit")
+  vim.cmd("terminal")
+end, { desc = "Open Claude in vertical split" })
