@@ -280,13 +280,8 @@ local function render_markdown_to_html()
     "gfm",
     "--mathjax",
     "--highlight-style=pygments",
-<<<<<<< HEAD
-    "--embed-resources", -- Embed images into the HTML
-    "--resource-path=" .. vim.fn.shellescape(working_dir .. ":."), -- Search in working dir and sub-paths
-=======
     "--embed-resources",
     "--resource-path=" .. vim.fn.shellescape(working_dir .. ":."),
->>>>>>> 5aaedff (2026-01-30 18:34:15)
     "-s",
     vim.fn.shellescape(tmp_md),
     "-V",
