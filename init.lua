@@ -40,7 +40,22 @@ vim.cmd([[
   nnoremap <silent> b :call CustomB()<CR>
 ]])
 
-require("custom_plugins.auditscope.mind").setup({})
+require("custom_plugins.auditscope.mind").setup({
+  -- optional overrides
+  icons = {
+    hypothesis = "❓",
+    insight = "💡",
+    fact = "📌",
+    question = "🧐",
+    finding = "🧭",
+    decision = "🧷",
+    evidence = "🔍",
+    risk = "⚠️",
+    note = "🗒️",
+  },
+  auto_trace = false,
+  show_glance = false,
+})
 
 -- require("dbee").install("curl")
 -- set filetype for .tx files

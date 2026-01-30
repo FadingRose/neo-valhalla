@@ -4,10 +4,13 @@ local Popup = require("nui.popup")
 local NuiTree = require("nui.tree")
 local event = require("nui.utils.autocmd").event
 local db = require("custom_plugins.auditscope.mind.db")
+local ontology = require("custom_plugins.auditscope.mind.ontology")
 local uv = vim.uv or vim.loop -- Add this line
 
 local M = {}
-local dashboard_win = nil
+local dashboard = nil
+local pin_win = nil
+local pinned_node = nil
 local config = {}
 
 function M.setup(user_config)
@@ -17,6 +20,13 @@ function M.setup(user_config)
       insight = "💡",
       fact = "📌",
       question = "🧐",
+      finding = "🧭",
+      decision = "🧷",
+      evidence = "🔍",
+      risk = "⚠️",
+      note = "🗒️",
+      assumption = "🧩",
+      invariant = "🧱",
       supports = "✅",
       refutes = "❌",
       relates = "🔗",
@@ -35,6 +45,66 @@ local function sanitize_text(text)
     return ""
   end
   return text:gsub("[\r\n]+", " ")
+end
+
+local function sort_nodes_by_timestamp(nodes)
+  table.sort(nodes, function(a, b)
+    return (a.timestamp or 0) > (b.timestamp or 0)
+  end)
+  return nodes
+end
+
+local function build_partitions(nodes, mode)
+  local groups = {}
+  local list = {}
+  for _, node in ipairs(nodes) do
+    local key
+    local label
+    if mode == "file" then
+      local rel = node.file and vim.fn.fnamemodify(node.file, ":.") or "unknown"
+      key = "file:" .. rel
+      label = rel
+    else
+      local node_type = node.type or "note"
+      key = "type:" .. node_type
+      label = string.format("%s %s", config.icons[node_type] or "🔹", node_type)
+    end
+    if not groups[key] then
+      groups[key] = {
+        key = key,
+        label = label,
+        nodes = {},
+        latest = 0,
+      }
+    end
+    table.insert(groups[key].nodes, node)
+    local ts = node.timestamp or 0
+    if ts > groups[key].latest then
+      groups[key].latest = ts
+    end
+  end
+  for _, group in pairs(groups) do
+    sort_nodes_by_timestamp(group.nodes)
+    table.insert(list, group)
+  end
+  table.sort(list, function(a, b)
+    return (a.latest or 0) > (b.latest or 0)
+  end)
+  return list
+end
+
+local function update_tab_popup()
+  if not dashboard or not dashboard.tab_popup then
+    return
+  end
+  local mode = dashboard.partition_mode or "type"
+  local type_label = mode == "type" and "[Type]" or " Type "
+  local file_label = mode == "file" and "[File]" or " File "
+  local lines = {
+    string.format("Tabs: %s | %s", type_label, file_label),
+    "Keys: t toggle | <Tab> focus | q close",
+  }
+  vim.api.nvim_buf_set_lines(dashboard.tab_popup.bufnr, 0, -1, false, lines)
 end
 
 -- 辅助：获取当前上下文
@@ -78,11 +148,16 @@ local function get_context()
     end_line_to_use = current_line_num
   end
 
+  local repo_context = db.get_repo_context()
+  local effective_commit = db.get_effective_commit()
+
   return {
     file = file,
     start_line = start_line_to_use,
     end_line = end_line_to_use,
     text = selected_text,
+    repo = repo_context,
+    commit = effective_commit,
   }
 end
 
@@ -291,13 +366,66 @@ local function show_input_buffer(title, initial_value, on_submit, node_context)
   -- Note: Removed BufLeave auto-close to support modals (vim.ui.select) used in link actions
 end
 
+local function show_input_split(title, initial_value, on_submit)
+  local origin_win = vim.api.nvim_get_current_win()
+  vim.cmd("botright 8split")
+
+  local win = vim.api.nvim_get_current_win()
+  local buf = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_win_set_buf(win, buf)
+
+  vim.bo[buf].buftype = "nofile"
+  vim.bo[buf].bufhidden = "wipe"
+  vim.bo[buf].swapfile = false
+  vim.bo[buf].filetype = "markdown"
+  vim.bo[buf].modifiable = true
+
+  vim.wo[win].wrap = true
+  vim.wo[win].number = false
+  vim.wo[win].relativenumber = false
+  vim.wo[win].signcolumn = "no"
+  vim.wo[win].cursorline = true
+  vim.wo[win].winfixheight = true
+  if title and title ~= "" then
+    vim.wo[win].winbar = " " .. title .. "  (<C-s> Save | <Esc> Save | <C-c> Cancel) "
+  end
+
+  if initial_value and #initial_value > 0 then
+    vim.api.nvim_buf_set_lines(buf, 0, -1, false, vim.split(initial_value, "\n"))
+  end
+
+  local function close()
+    if vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_close(win, true)
+    end
+    if vim.api.nvim_win_is_valid(origin_win) then
+      vim.api.nvim_set_current_win(origin_win)
+    end
+  end
+
+  local function submit()
+    local lines = vim.api.nvim_buf_get_lines(buf, 0, -1, false)
+    local value = vim.trim(table.concat(lines, "\n"))
+    close()
+    on_submit(value)
+  end
+
+  local function cancel()
+    close()
+  end
+
+  vim.keymap.set({ "n", "i" }, "<C-s>", submit, { buffer = buf })
+  vim.keymap.set({ "n", "i" }, "<Esc>", submit, { buffer = buf })
+  vim.keymap.set({ "n", "i" }, "<C-c>", cancel, { buffer = buf })
+end
+
 -- Pin window management
 local function create_pin_window()
   if pin_win then
     pin_win:unmount()
   end
 
-  local pin_win = Popup({
+  pin_win = Popup({
     enter = false,
     focusable = false,
     border = {
@@ -382,7 +510,7 @@ function M.pin_node()
       return
     end
 
-    local pinned_node = node_map[choice]
+    pinned_node = node_map[choice]
     create_pin_window()
     update_pin_content()
     print("Pinned: " .. pinned_node.text)
@@ -411,11 +539,18 @@ function M.get_pinned_node()
 end
 
 -- 1. 创建新节点
-function M.create_node(type)
+function M.create_node(type, opts)
+  opts = opts or {}
   local ctx = get_context()
 
-  show_input_buffer("New " .. type, "", function(value)
+  local input_fn = show_input_buffer
+  if opts.input == "split" then
+    input_fn = show_input_split
+  end
+
+  input_fn("New " .. type, "", function(value)
     if value and #value > 0 then
+      local repo = ctx.repo or {}
       local node = {
         id = tostring(os.time()) .. math.random(100, 999),
         type = type,
@@ -424,6 +559,10 @@ function M.create_node(type)
         start_line = ctx.start_line,
         end_line = ctx.end_line,
         code_snippet = ctx.text,
+        repo_root = repo.root,
+        repo_name = repo.name,
+        repo_remote = repo.remote,
+        commit = ctx.commit or repo.commit,
         timestamp = os.time(),
       }
       db.add_node(node)
@@ -470,9 +609,19 @@ function M.link_node(source_node, on_complete)
 
     vim.ui.select({ "supports", "refutes", "relates" }, { prompt = "Relation Type:" }, function(rel)
       if rel then
+        if not ontology.is_link_allowed(source_node.type, target.type) then
+          vim.notify(
+            string.format(
+              "AuditScope: link violates level rule (%s -> %s).",
+              tostring(source_node.type or "unknown"),
+              tostring(target.type or "unknown")
+            ),
+            vim.log.levels.WARN
+          )
+        end
         db.add_edge(source_node.id, target.id, rel)
         print(string.format("Linked: %s --[%s]--> %s", source_node.text, rel, target.text))
-        if dashboard_win then
+        if dashboard then
           M.refresh_dashboard()
         end
         if on_complete then
@@ -485,164 +634,370 @@ end
 
 -- 3. Dashboard (思维导图视图)
 function M.toggle_dashboard()
-  if dashboard_win then
-    dashboard_win:unmount()
-    dashboard_win = nil
+  if dashboard and dashboard.layout then
+    dashboard.layout:unmount()
+    dashboard = nil
     return
   end
 
-  dashboard_win = Popup({
+  local subject = db.get_subject()
+  local title = subject and subject.title or "AuditMind Graph"
+
+  local tab_popup = Popup({
+    enter = false,
+    focusable = false,
+    border = { style = "rounded", text = { top = " " .. title .. " " } },
+  })
+
+  local partition_popup = Popup({
     enter = true,
     focusable = true,
-    border = { style = "rounded", text = { top = " AuditMind Graph " } },
-    position = {
-      row = "50%", -- Center vertically
-      col = "50%", -- Anchor to the right
-    },
-    size = { width = "90%", height = "90%" },
+    border = { style = "rounded", text = { top = " Partitions " } },
   })
-  dashboard_win:mount()
 
-  dashboard_win:on(event.BufLeave, function()
-    dashboard_win:unmount()
-    dashboard_win = nil
-  end)
+  local list_popup = Popup({
+    enter = false,
+    focusable = true,
+    border = { style = "rounded", text = { top = " Nodes " } },
+  })
+
+  local detail_popup = Popup({
+    enter = false,
+    focusable = false,
+    border = { style = "rounded", text = { top = " Details " } },
+  })
+
+  local layout = Layout(
+    {
+      position = "50%",
+      size = { width = "90%", height = "90%" },
+    },
+    Layout.Box({
+      Layout.Box({
+        Layout.Box(tab_popup, { size = 3 }),
+        Layout.Box(partition_popup, { size = "40%" }),
+        Layout.Box(list_popup, { size = "60%" }),
+      }, { dir = "col", size = "60%" }),
+      Layout.Box(detail_popup, { size = "40%" }),
+    }, { dir = "row" })
+  )
+
+  dashboard = {
+    layout = layout,
+    tab_popup = tab_popup,
+    partition_popup = partition_popup,
+    list_popup = list_popup,
+    detail_popup = detail_popup,
+    partition_tree = nil,
+    list_tree = nil,
+    partitions = {},
+    nodes = {},
+    partition_mode = "type",
+    selected_partition_key = nil,
+    selected_node_id = nil,
+  }
+
+  layout:mount()
+  update_tab_popup()
+
+  local function close_dashboard()
+    if dashboard and dashboard.layout then
+      dashboard.layout:unmount()
+      dashboard = nil
+    end
+  end
+
+  local function focus_list()
+    if dashboard and dashboard.list_popup and dashboard.list_popup.winid then
+      vim.api.nvim_set_current_win(dashboard.list_popup.winid)
+    end
+  end
+
+  local function focus_partitions()
+    if dashboard and dashboard.partition_popup and dashboard.partition_popup.winid then
+      vim.api.nvim_set_current_win(dashboard.partition_popup.winid)
+    end
+  end
+
+  local function toggle_tab()
+    if not dashboard then
+      return
+    end
+    dashboard.partition_mode = dashboard.partition_mode == "type" and "file" or "type"
+    dashboard.selected_partition_key = nil
+    dashboard.selected_node_id = nil
+    update_tab_popup()
+    M.refresh_dashboard()
+  end
 
   -- 快捷键：回车跳转到代码
-  dashboard_win:map("n", "<CR>", function()
-    local tree = dashboard_win.tree
+  list_popup:map("n", "<CR>", function()
+    local tree = dashboard and dashboard.list_tree or nil
+    if not tree then
+      return
+    end
     local node = tree:get_node()
     if node and node.data and node.data.file then
-      dashboard_win:unmount()
-      dashboard_win = nil
+      close_dashboard()
       vim.cmd("e " .. node.data.file)
       vim.api.nvim_win_set_cursor(0, { node.data.start_line, 0 })
     end
   end)
 
-  local function toggle_expand()
-    local tree = dashboard_win.tree
-    local node = tree:get_node()
-    if node and node:has_children() then
-      if node:is_expanded() then
-        node:collapse()
-      else
-        node:expand()
-      end
-      tree:render()
-    end
-  end
+  partition_popup:map("n", "q", close_dashboard)
+  partition_popup:map("n", "t", toggle_tab)
+  partition_popup:map("n", "<Tab>", focus_list)
 
-  dashboard_win:map("n", "<Tab>", toggle_expand)
-  dashboard_win:map("n", "o", toggle_expand)
+  list_popup:map("n", "q", close_dashboard)
+  list_popup:map("n", "t", toggle_tab)
+  list_popup:map("n", "<S-Tab>", focus_partitions)
+  list_popup:map("n", "<Tab>", focus_partitions)
+
+  vim.api.nvim_create_autocmd("CursorMoved", {
+    buffer = partition_popup.bufnr,
+    callback = function()
+      if not dashboard or not dashboard.partition_tree then
+        return
+      end
+      local node = dashboard.partition_tree:get_node()
+      if node and node.data and node.data.key ~= dashboard.selected_partition_key then
+        dashboard.selected_partition_key = node.data.key
+        dashboard.selected_node_id = nil
+        M.refresh_dashboard_list()
+      end
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("CursorMoved", {
+    buffer = list_popup.bufnr,
+    callback = function()
+      if not dashboard or not dashboard.list_tree then
+        return
+      end
+      local node = dashboard.list_tree:get_node()
+      if node and node.data then
+        if dashboard.selected_node_id ~= node.data.id then
+          dashboard.selected_node_id = node.data.id
+        end
+        M.refresh_dashboard_details()
+      end
+    end,
+  })
+
   M.refresh_dashboard()
 end
 
+function M.refresh_dashboard_details()
+  if not dashboard or not dashboard.list_tree or not dashboard.detail_popup then
+    return
+  end
+  local node = dashboard.list_tree:get_node()
+  if not node or not node.data then
+    vim.api.nvim_buf_set_lines(dashboard.detail_popup.bufnr, 0, -1, false, { "No node selected." })
+    return
+  end
+
+  local data = node.data
+  local lines = {}
+
+  local function add_line(value)
+    if value and value ~= "" then
+      table.insert(lines, value)
+    end
+  end
+
+  local function wrap_text(text, width)
+    local out = {}
+    local current = ""
+    for word in tostring(text):gmatch("%S+") do
+      if #current == 0 then
+        current = word
+      elseif #current + #word + 1 <= width then
+        current = current .. " " .. word
+      else
+        table.insert(out, current)
+        current = word
+      end
+    end
+    if current ~= "" then
+      table.insert(out, current)
+    end
+    return out
+  end
+
+  local width = 60
+  if dashboard.detail_popup.winid and vim.api.nvim_win_is_valid(dashboard.detail_popup.winid) then
+    width = math.max(20, vim.api.nvim_win_get_width(dashboard.detail_popup.winid) - 2)
+  end
+
+  add_line(string.format("Type: %s", data.type or "note"))
+  add_line("")
+  add_line("Keys: <CR> open | t tabs | <Tab> focus | q close")
+  add_line("")
+  add_line("Text:")
+  local wrapped = wrap_text(data.text or "", width)
+  if #wrapped == 0 then
+    table.insert(lines, "  (empty)")
+  else
+    for _, line in ipairs(wrapped) do
+      table.insert(lines, "  " .. line)
+    end
+  end
+
+  add_line("")
+  if data.repo_name then
+    add_line("Repo: " .. data.repo_name)
+  end
+  if data.file and data.start_line then
+    add_line(string.format("Location: %s:%s", vim.fn.fnamemodify(data.file, ":."), format_line_range(data.start_line, data.end_line)))
+  end
+  if data.commit then
+    add_line("Commit: " .. data.commit)
+  end
+
+  local edges = db.get_edges()
+  local incoming = {}
+  local outgoing = {}
+  for _, edge in ipairs(edges) do
+    if edge.to == data.id then
+      table.insert(incoming, edge)
+    elseif edge.from == data.id then
+      table.insert(outgoing, edge)
+    end
+  end
+
+  if #incoming > 0 then
+    add_line("")
+    add_line("Incoming:")
+    for _, edge in ipairs(incoming) do
+      table.insert(lines, string.format("  <- [%s] %s", edge.relation or "relates", edge.from or "unknown"))
+    end
+  end
+
+  if #outgoing > 0 then
+    add_line("")
+    add_line("Outgoing:")
+    for _, edge in ipairs(outgoing) do
+      table.insert(lines, string.format("  -> [%s] %s", edge.relation or "relates", edge.to or "unknown"))
+    end
+  end
+
+  vim.api.nvim_buf_set_lines(dashboard.detail_popup.bufnr, 0, -1, false, lines)
+end
+
+function M.refresh_dashboard_partitions()
+  if not dashboard or not dashboard.partition_popup then
+    return
+  end
+
+  local partition_nodes = {}
+  for _, part in ipairs(dashboard.partitions or {}) do
+    local label = string.format("%s (%d)", part.label, #part.nodes)
+    table.insert(
+      partition_nodes,
+      NuiTree.Node({
+        text = label,
+        data = { key = part.key, partition = part },
+      })
+    )
+  end
+
+  dashboard.partition_tree = NuiTree({
+    nodes = partition_nodes,
+    bufnr = dashboard.partition_popup.bufnr,
+    get_node_id = function(node)
+      return node.data and node.data.key or tostring(node.text)
+    end,
+  })
+  dashboard.partition_tree:render()
+
+  local selected_key = dashboard.selected_partition_key
+  if selected_key then
+    local _, start_line = dashboard.partition_tree:get_node(selected_key)
+    if start_line and dashboard.partition_popup.winid and vim.api.nvim_win_is_valid(dashboard.partition_popup.winid) then
+      vim.api.nvim_win_set_cursor(dashboard.partition_popup.winid, { start_line, 0 })
+    else
+      dashboard.selected_partition_key = nil
+    end
+  end
+
+  if not dashboard.selected_partition_key and #partition_nodes > 0 then
+    dashboard.selected_partition_key = partition_nodes[1].data.key
+    if dashboard.partition_popup.winid and vim.api.nvim_win_is_valid(dashboard.partition_popup.winid) then
+      vim.api.nvim_win_set_cursor(dashboard.partition_popup.winid, { 1, 0 })
+    end
+  end
+end
+
+function M.refresh_dashboard_list()
+  if not dashboard or not dashboard.list_popup then
+    return
+  end
+
+  local selected_partition = nil
+  for _, part in ipairs(dashboard.partitions or {}) do
+    if part.key == dashboard.selected_partition_key then
+      selected_partition = part
+      break
+    end
+  end
+
+  if not selected_partition and #dashboard.partitions > 0 then
+    selected_partition = dashboard.partitions[1]
+    dashboard.selected_partition_key = selected_partition.key
+  end
+
+  local list_nodes = {}
+  if selected_partition then
+    for _, node in ipairs(selected_partition.nodes) do
+      table.insert(
+        list_nodes,
+        NuiTree.Node({
+          text = string.format("%s %s", config.icons[node.type] or "🔹", sanitize_text(node.text)),
+          data = node,
+        })
+      )
+    end
+  end
+
+  dashboard.list_tree = NuiTree({
+    nodes = list_nodes,
+    bufnr = dashboard.list_popup.bufnr,
+    get_node_id = function(node)
+      return node.data and node.data.id or tostring(node.text)
+    end,
+  })
+  dashboard.list_tree:render()
+
+  if dashboard.selected_node_id then
+    local _, start_line = dashboard.list_tree:get_node(dashboard.selected_node_id)
+    if start_line and dashboard.list_popup.winid and vim.api.nvim_win_is_valid(dashboard.list_popup.winid) then
+      vim.api.nvim_win_set_cursor(dashboard.list_popup.winid, { start_line, 0 })
+    else
+      dashboard.selected_node_id = nil
+    end
+  end
+
+  if not dashboard.selected_node_id and #list_nodes > 0 then
+    dashboard.selected_node_id = list_nodes[1].data.id
+    if dashboard.list_popup.winid and vim.api.nvim_win_is_valid(dashboard.list_popup.winid) then
+      vim.api.nvim_win_set_cursor(dashboard.list_popup.winid, { 1, 0 })
+    end
+  end
+
+  M.refresh_dashboard_details()
+end
+
 function M.refresh_dashboard()
-  if not dashboard_win then
+  if not dashboard or not dashboard.partition_popup or not dashboard.list_popup then
     return
   end
 
   local nodes = db.get_nodes()
-  local edges = db.get_edges()
-
-  -- 1. 构建查找表 (Map)
-  local node_map = {}
-  for _, n in ipairs(nodes) do
-    node_map[n.id] = n
-  end
-
-  -- 2. 构建反向边映射: Target ID -> List of Edges (指所有指向这个节点的边)
-  local incoming_map = {}
-  for _, edge in ipairs(edges) do
-    if not incoming_map[edge.to] then
-      incoming_map[edge.to] = {}
-    end
-    table.insert(incoming_map[edge.to], edge)
-  end
-
-  local processed_ids = {} -- 记录已经被放入树中的节点 ID (作为跟或子节点)
-
-  -- 3. 递归构建树节点的辅助函数
-  -- parent_id: 当前正在构建的父节点ID
-  -- path: 用于检测循环引用的路径表
-  local function build_tree_nodes(parent_id, path)
-    local children_ui_nodes = {}
-    local incoming = incoming_map[parent_id] or {}
-
-    for _, edge in ipairs(incoming) do
-      local src_node_id = edge.from
-      local src_node = node_map[src_node_id]
-
-      -- 只有当源节点存在，且不在当前递归路径中（防止死循环 A->B->A）
-      if src_node and not path[src_node_id] then
-        -- 记录新路径
-        local new_path = vim.deepcopy(path)
-        new_path[src_node_id] = true
-
-        -- 标记为全局已处理，避免出现在孤立节点列表中
-        processed_ids[src_node_id] = true
-
-        -- 递归获取子节点的子节点 (Grandchildren)
-        local grand_children = build_tree_nodes(src_node_id, new_path)
-
-        -- 构建 NuiTree 节点
-        local ui_node = NuiTree.Node({
-          text = string.format(
-            "  %s %s %s",
-            config.icons[edge.relation] or "🔗",
-            config.icons[src_node.type] or "🔹",
-            sanitize_text(src_node.text)
-          ),
-          data = src_node,
-        }, grand_children) -- 传入递归结果作为 children
-
-        table.insert(children_ui_nodes, ui_node)
-      end
-    end
-
-    return children_ui_nodes
-  end
-
-  local tree_nodes = {}
-
-  -- 4. 策略：优先处理 Hypothesis 和 Question 作为根节点
-  for _, node in ipairs(nodes) do
-    if node.type == "hypothesis" or node.type == "question" then
-      processed_ids[node.id] = true
-
-      -- 开始递归构建子树
-      local children = build_tree_nodes(node.id, { [node.id] = true })
-
-      table.insert(
-        tree_nodes,
-        NuiTree.Node({
-          text = string.format("%s %s", config.icons[node.type] or "🔹", sanitize_text(node.text)),
-          data = node,
-        }, children)
-      )
-    end
-  end
-
-  -- 5. 处理孤立节点（既不是跟节点，也没有被作为子节点引用过）
-  for _, node in ipairs(nodes) do
-    if not processed_ids[node.id] then
-      -- 这里可以尝试检查该节点是否有子节点，如果有，也构建一棵树
-      -- 即使它不是 Hypothesis/Question (例如孤立的 Insight -> Fact 链)
-      local children = build_tree_nodes(node.id, { [node.id] = true })
-
-      table.insert(
-        tree_nodes,
-        NuiTree.Node({
-          text = string.format("%s %s", config.icons[node.type] or "🔹", sanitize_text(node.text)),
-          data = node,
-        }, children)
-      )
-    end
-  end
-
-  dashboard_win.tree = NuiTree({ nodes = tree_nodes, bufnr = dashboard_win.bufnr })
-  dashboard_win.tree:render()
+  dashboard.nodes = nodes
+  dashboard.partitions = build_partitions(nodes, dashboard.partition_mode)
+  M.refresh_dashboard_partitions()
+  M.refresh_dashboard_list()
 end
 
 -- 4. 删除节点
@@ -675,7 +1030,7 @@ function M.delete_node()
     if node_to_delete then
       db.delete_node(node_to_delete.id)
       print("Node deleted: " .. node_to_delete.text)
-      if dashboard_win then
+      if dashboard then
         M.refresh_dashboard()
       end
     end
@@ -759,12 +1114,12 @@ function M.modify_node()
 
     if node_to_modify then
       -- Pass node_to_modify to show_input_buffer context
-      show_input_buffer("Modify Node", node_to_modify.text, function(value)
+      show_input_split("Modify Node", node_to_modify.text, function(value)
         if value and #value > 0 then
           node_to_modify.text = value
           db.update_node(node_to_modify)
           print("Node modified: " .. value)
-          if dashboard_win then
+          if dashboard then
             M.refresh_dashboard()
           end
         end

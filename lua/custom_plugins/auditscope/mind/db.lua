@@ -1,269 +1,552 @@
 local Path = require("plenary.path")
 local M = {}
 
--- 初始状态为空
-M.data = { nodes = {}, edges = {}, glance = {} }
+M.data = { subject = nil, nodes = {}, edges = {}, glance = {} }
 M.file_path = nil
-M.project_info = {
-  root = nil,
-  name = nil,
-  commit = nil,
-}
+M.subject_index = { subjects = {} }
+M.active_subject_id = nil
+M.locked_commits = {}
 
-M.locked_commit = nil
+local STORAGE_ROOT = vim.fs.joinpath(vim.fn.stdpath("data"), "auditscope")
+local SUBJECTS_DIR = vim.fs.joinpath(STORAGE_ROOT, "subjects")
+local REPORTS_DIR = vim.fs.joinpath(STORAGE_ROOT, "reports")
+local STATE_FILE = vim.fs.joinpath(STORAGE_ROOT, "state.json")
+local INDEX_FILE = vim.fs.joinpath(STORAGE_ROOT, "subjects.json")
 
-local function get_git_context()
-  local git_root = vim.fs.root(0, ".git")
+local STORAGE_ROOT_PATH = Path:new(STORAGE_ROOT)
+local SUBJECTS_DIR_PATH = Path:new(SUBJECTS_DIR)
+local REPORTS_DIR_PATH = Path:new(REPORTS_DIR)
+local STATE_FILE_PATH = Path:new(STATE_FILE)
+local INDEX_FILE_PATH = Path:new(INDEX_FILE)
 
-  if not git_root then
-    vim.notify("AuditScope: Not a git repository. Using logical root.", vim.log.levels.WARN)
-    return vim.fn.getcwd(), "default_project", "no_commit"
+local function ensure_dirs()
+  if not STORAGE_ROOT_PATH:exists() then
+    STORAGE_ROOT_PATH:mkdir({ parents = true })
   end
-
-  local project_name = vim.fn.fnamemodify(git_root, ":t")
-
-  -- 获取 Short Commit Hash
-  local commit_hash = vim.fn.systemlist("git rev-parse --short HEAD")[1]
-  if vim.v.shell_error ~= 0 or not commit_hash then
-    commit_hash = "unknown"
+  if not SUBJECTS_DIR_PATH:exists() then
+    SUBJECTS_DIR_PATH:mkdir({ parents = true })
   end
-
-  return git_root, project_name, commit_hash
+  if not REPORTS_DIR_PATH:exists() then
+    REPORTS_DIR_PATH:mkdir({ parents = true })
+  end
 end
 
---- 锁定当前 commit hash
---- 一旦锁定，后续操作将使用锁定的 commit 而非动态获取
---- @param commit_hash string|nil 要锁定的 commit hash，nil 表示使用当前 commit
---- @return string|nil 锁定的 commit hash，失败返回 nil
-function M.set_commit(commit_hash)
-  if commit_hash == nil then
-    vim.notify("AuditMind: No commit hash provided, locking to current commit.", vim.log.levels.INFO)
+local function load_json(path, fallback)
+  if path:exists() then
+    local content = path:read()
+    local ok, decoded = pcall(vim.json.decode, content)
+    if ok and type(decoded) == "table" then
+      return decoded
+    end
   end
-
-  local _, _, current_commit_short = get_git_context() -- 获取当前 short hash
-  if commit_hash:len() > current_commit_short:len() then
-    commit_hash = commit_hash:sub(1, current_commit_short:len())
-  end
-
-  M.locked_commit = commit_hash
-
-  vim.notify(string.format("AuditMind: Commit locked to %s", M.locked_commit), vim.log.levels.INFO)
-
-  return M.locked_commit
+  return fallback
 end
 
---- 解除 commit 锁定
-function M.unlock_commit()
-  M.locked_commit = nil
-  vim.notify("AuditMind: Commit lock released", vim.log.levels.INFO)
+local function save_json(path, data)
+  path:write(vim.json.encode(data), "w")
 end
 
---- 获取当前使用的 commit（优先使用锁定值）
---- @return string commit hash
-function M.get_effective_commit()
-  if M.locked_commit then
-    return M.locked_commit
-  end
-  local _, _, commit = get_git_context()
-  return commit
+function M.init()
+  ensure_dirs()
+  M.load_index()
+  M.load_state()
 end
 
-function M.try_select_mind()
-  local git_root, _, current_commit = get_git_context()
+function M.get_storage_paths()
+  ensure_dirs()
+  return {
+    root = STORAGE_ROOT,
+    subjects_dir = SUBJECTS_DIR,
+    reports_dir = REPORTS_DIR,
+    state_file = STATE_FILE,
+    index_file = INDEX_FILE,
+  }
+end
 
-  local storage_dir = Path:new(git_root)
-  if not storage_dir then
-    return nil -- Silent failure
+function M.load_index()
+  ensure_dirs()
+  M.subject_index = load_json(INDEX_FILE_PATH, { subjects = {} })
+  if not M.subject_index.subjects then
+    M.subject_index.subjects = {}
   end
-  storage_dir = Path.joinpath(storage_dir, ".auiditscope.mind")
+  return M.subject_index
+end
 
-  --- 尝试列出所有可用的思维图谱文件
-  if not storage_dir:exists() then
-    vim.notify("AuditScope: No mind map history found.", vim.log.levels.WARN)
-    return
+function M.save_index()
+  ensure_dirs()
+  save_json(INDEX_FILE_PATH, M.subject_index or { subjects = {} })
+end
+
+function M.load_state()
+  ensure_dirs()
+  local state = load_json(STATE_FILE_PATH, {})
+  M.active_subject_id = state.active_subject_id
+  return state
+end
+
+function M.save_state()
+  ensure_dirs()
+  save_json(STATE_FILE_PATH, { active_subject_id = M.active_subject_id })
+end
+
+function M.get_subjects()
+  M.load_index()
+  return M.subject_index.subjects
+end
+
+local function subject_path(subject_id)
+  ensure_dirs()
+  local filename = string.format("%s.json", subject_id)
+  return Path:new(vim.fs.joinpath(SUBJECTS_DIR, filename))
+end
+
+local function resolve_subject_file(subject_id)
+  local file = subject_path(subject_id)
+  if file:exists() then
+    return file
+  end
+  local alt = Path:new(vim.fs.joinpath(SUBJECTS_DIR, tostring(subject_id)))
+  if alt:exists() then
+    return alt
+  end
+  return file
+end
+
+local function is_path_within(path, root)
+  local normalized_root = vim.fs.normalize(root)
+  local normalized_path = vim.fs.normalize(path)
+  local prefix = normalized_root .. "/"
+  return normalized_path == normalized_root or vim.startswith(normalized_path, prefix)
+end
+
+local function safe_filename(value)
+  if value == nil then
+    return nil
+  end
+  local name = tostring(value)
+  if name == "" then
+    return nil
+  end
+  name = name:gsub("[/\\]", "_")
+  name = name:gsub("%s+", "_")
+  name = name:gsub("[^%w%._-]", "_")
+  name = name:gsub("_+", "_")
+  name = name:gsub("^[_%.]+", "")
+  name = name:gsub("[_%.]+$", "")
+  if name == "" then
+    return nil
+  end
+  return name
+end
+
+local function report_path_for_subject(meta)
+  if not meta then
+    return nil
+  end
+  local report_name = safe_filename(meta.id) or safe_filename(meta.title)
+  if not report_name then
+    return nil
+  end
+  return vim.fs.joinpath(REPORTS_DIR, report_name .. ".md")
+end
+
+local function new_subject_meta(title, opts)
+  local now = os.time()
+  return {
+    id = opts.id,
+    title = title,
+    status = opts.status or "active",
+    scope = opts.scope or "",
+    created_at = opts.created_at or now,
+    updated_at = opts.updated_at or now,
+  }
+end
+
+function M.get_subject()
+  return M.data.subject
+end
+
+function M.compute_subject_stats(meta)
+  if not meta or not meta.id then
+    return nil
   end
 
-  local files = vim.fn.glob(storage_dir:absolute() .. "/*.json", 0, 1)
-  local options = {}
+  local file = resolve_subject_file(meta.id)
+  local file_path = file:absolute()
+  if not is_path_within(file_path, SUBJECTS_DIR) then
+    return nil
+  end
 
-  for _, file in ipairs(files) do
-    local filename = vim.fn.fnamemodify(file, ":t")
-    -- 解析格式: <ProjectName>_<CommitHash>.json
-    -- 使用 greedy match 匹配最后一个 _ 之前的内容作为 ProjectName
-    local p_name, c_hash = filename:match("^(.*)_(.*)%.json$")
-    if p_name and c_hash then
-      table.insert(options, {
-        project = p_name,
-        commit = c_hash,
-        file = file,
-      })
+  if not file:exists() then
+    return {
+      nodes = 0,
+      edges = 0,
+      summary = false,
+      report = false,
+    }
+  end
+
+  local content = file:read()
+  local ok, decoded = pcall(vim.json.decode, content)
+  if not ok or type(decoded) ~= "table" then
+    return {
+      nodes = 0,
+      edges = 0,
+      summary = false,
+      report = false,
+    }
+  end
+
+  local subject = decoded.subject or {}
+  local nodes = decoded.nodes or {}
+  local edges = decoded.edges or {}
+  local summary = subject.summary
+  local report_path = report_path_for_subject(subject)
+  local report_exists = false
+  if report_path then
+    local report_file = Path:new(report_path)
+    report_exists = report_file:exists() and not report_file:is_dir()
+  end
+
+  local stats = {
+    nodes = #nodes,
+    edges = #edges,
+    summary = summary ~= nil and summary ~= "",
+    report = report_exists,
+  }
+
+  local updates = {}
+  if subject.title and subject.title ~= meta.title then
+    updates.title = subject.title
+  end
+  if subject.status and subject.status ~= meta.status then
+    updates.status = subject.status
+  end
+  if subject.updated_at and subject.updated_at ~= meta.updated_at then
+    updates.updated_at = subject.updated_at
+  end
+  if subject.scope and subject.scope ~= meta.scope then
+    updates.scope = subject.scope
+  end
+
+  return stats, updates
+end
+
+function M.hydrate_subjects_with_stats()
+  local subjects = M.get_subjects()
+  if #subjects == 0 then
+    return subjects
+  end
+
+  local changed = false
+  for _, item in ipairs(subjects) do
+    local stats, updates = M.compute_subject_stats(item)
+    if stats then
+      if not vim.deep_equal(item.stats, stats) then
+        item.stats = stats
+        changed = true
+      end
+    end
+    if updates and next(updates) then
+      for key, value in pairs(updates) do
+        item[key] = value
+      end
+      changed = true
     end
   end
 
-  if #options == 0 then
-    vim.notify("AuditScope: No mind map files available.", vim.log.levels.INFO)
+  if changed then
+    M.save_index()
+  end
+
+  return subjects
+end
+
+function M.delete_subject_confirmed(subject_id)
+  local subjects = M.get_subjects()
+  if #subjects == 0 then
+    return false
+  end
+
+  local file = resolve_subject_file(subject_id)
+  local file_path = file:absolute()
+  if not is_path_within(file_path, SUBJECTS_DIR) then
+    vim.notify("AuditScope: Refusing to delete outside subjects directory.", vim.log.levels.ERROR)
+    return false
+  end
+
+  if file:exists() then
+    file:rm()
+  end
+
+  local remaining = {}
+  for _, item in ipairs(subjects) do
+    if item.id ~= subject_id then
+      table.insert(remaining, item)
+    end
+  end
+  M.subject_index.subjects = remaining
+  M.save_index()
+
+  if M.active_subject_id == subject_id then
+    M.active_subject_id = nil
+    M.file_path = nil
+    M.data = { subject = nil, nodes = {}, edges = {}, glance = {} }
+    M.save_state()
+  end
+
+  return true
+end
+
+function M.delete_subject(subject_id)
+  local subjects = M.get_subjects()
+  if #subjects == 0 then
+    vim.notify("AuditScope: No subjects found.", vim.log.levels.INFO)
     return
   end
 
-  vim.ui.select(options, {
-    prompt = "Select Audit Mind Map:",
-    format_item = function(item)
-      local marker = (item.commit == current_commit) and " (Current)" or ""
-      return string.format("%s - %s%s", item.commit, item.project, marker)
-    end,
-  }, function(choice)
-    if choice then
-      -- 锁定并加载选中的 commit
-      M.set_commit(choice.commit)
-      if M.TryLoadMind() then
-        vim.notify(string.format("Loaded mind map for commit: %s", choice.commit), vim.log.levels.INFO)
-
-        -- 刷新 UI 组件 (安全调用)
-        local ok_signs, signs = pcall(require, "auditscope.mind.signs")
-        if ok_signs then
-          signs.refresh()
-        end
-
-        local ok_ui, ui = pcall(require, "auditscope.mind.ui")
-        if ok_ui then
-          ui.refresh_dashboard()
-        end
-      else
-        vim.notify("Failed to load selected mind map.", vim.log.levels.ERROR)
+  if not subject_id or subject_id == "" then
+    vim.ui.select(subjects, {
+      prompt = "Delete Audit Subject:",
+      format_item = function(item)
+        local updated = item.updated_at and os.date("%Y-%m-%d", item.updated_at) or "unknown"
+        return string.format("%s [%s] (%s)", item.title or "Untitled", item.status or "active", updated)
+      end,
+    }, function(choice)
+      if choice and choice.id then
+        M.delete_subject(choice.id)
       end
+    end)
+    return
+  end
+
+  local target = nil
+  for _, item in ipairs(subjects) do
+    if item.id == subject_id then
+      target = item
+      break
+    end
+  end
+
+  local title = target and target.title or subject_id
+  vim.ui.input({
+    prompt = string.format("Type DELETE to remove subject '%s': ", title),
+  }, function(confirm)
+    if confirm ~= "DELETE" then
+      return
+    end
+    if M.delete_subject_confirmed(subject_id) then
+      vim.notify("AuditScope: Subject deleted.", vim.log.levels.INFO)
     end
   end)
 end
 
---- 尝试载入审计思维图谱数据库
---- 如果成功则载入并设置M.data, M.file_path, M.project_info
---- 如果失败则静默返回 nil
-function M.TryLoadMind()
-  local git_root, project_name, commit_hash = get_git_context()
-
-  -- 如果有锁定的 commit，使用锁定值
-  if M.locked_commit then
-    commit_hash = M.locked_commit
-  end
-
-  -- 更新内部状态信息
-  M.project_info = {
-    root = git_root,
-    name = project_name,
-    commit = commit_hash,
-  }
-
-  -- 构建存储目录: <GitRoot>/.auditscope.mind/
-  local storage_dir = Path:new(git_root)
-  if not storage_dir then
-    return nil -- Silent failure
-  end
-  storage_dir = Path.joinpath(storage_dir, ".auiditscope.mind")
-
-  -- 构建文件名: <ProjectName>_<CommitHash>.json
-  local filename = string.format("%s_%s.json", project_name, commit_hash)
-  M.file_path = Path.joinpath(storage_dir, filename)
-
-  if not M.file_path then
-    M.file_path = nil -- Reset file_path if it doesn't exist
-    M.project_info = { -- Also reset project_info if file not found
-      root = nil,
-      name = nil,
-      commit = nil,
-    }
+function M.set_active_subject(subject_id)
+  if not subject_id then
     return nil
   end
-
-  -- 尝试加载现有数据
+  local file = subject_path(subject_id)
+  if not file:exists() then
+    return nil
+  end
+  M.file_path = file
+  M.active_subject_id = subject_id
+  M.save_state()
   M.load()
-
-  -- 如果加载M.data后仍然是初始空状态，可能文件内容无效，静默失败
-  -- 否则，返回项目信息
-  if next(M.data.nodes) == nil and next(M.data.edges) == nil then
-    M.project_info = { -- Reset project_info if loaded data is empty
-      root = nil,
-      name = nil,
-      commit = nil,
-    }
-    return nil
+  if not M.data.subject then
+    M.data.subject = new_subject_meta("Untitled Subject", { id = subject_id })
+    M.touch_subject()
+    save_json(M.file_path, M.data)
+  elseif not M.data.subject.id then
+    M.data.subject.id = subject_id
+    M.save()
   end
-
-  return M.project_info
+  return M.data.subject
 end
 
---- 初始化审计思维图谱数据库
---- @param opts table|nil 可选配置，例如 { force_name = "custom_session" }
-function M.CreateMind(opts)
+function M.create_subject(title, opts)
   opts = opts or {}
+  M.load_index()
 
-  local git_root, project_name, commit_hash = get_git_context()
+  local id = opts.id or (tostring(os.time()) .. tostring(math.random(100, 999)))
+  local meta = new_subject_meta(title or "Untitled Subject", { id = id, status = opts.status, scope = opts.scope })
 
-  -- 允许用户覆盖项目名（可选）
-  if opts.project_name then
-    project_name = opts.project_name
+  local file = subject_path(id)
+  M.file_path = file
+  M.data = { subject = meta, nodes = {}, edges = {}, glance = {} }
+  save_json(file, M.data)
+
+  table.insert(M.subject_index.subjects, meta)
+  M.save_index()
+
+  M.active_subject_id = id
+  M.save_state()
+
+  return meta
+end
+
+function M.update_subject_meta(meta)
+  if not meta or not meta.id then
+    return
+  end
+  M.load_index()
+  for i, item in ipairs(M.subject_index.subjects) do
+    if item.id == meta.id then
+      M.subject_index.subjects[i] = meta
+      M.save_index()
+      return
+    end
+  end
+  table.insert(M.subject_index.subjects, meta)
+  M.save_index()
+end
+
+function M.touch_subject()
+  if not M.data.subject then
+    return
+  end
+  M.data.subject.updated_at = os.time()
+  M.update_subject_meta(M.data.subject)
+end
+
+function M.select_subject()
+  local subjects = M.get_subjects()
+  if #subjects == 0 then
+    vim.notify("AuditScope: No subjects found. Use :AuditSubjectNew first.", vim.log.levels.INFO)
+    return
   end
 
-  -- 如果有锁定的 commit，使用锁定值
-  if M.locked_commit then
-    commit_hash = M.locked_commit
+  table.sort(subjects, function(a, b)
+    return (a.updated_at or 0) > (b.updated_at or 0)
+  end)
+
+  vim.ui.select(subjects, {
+    prompt = "Select Audit Subject:",
+    format_item = function(item)
+      local updated = item.updated_at and os.date("%Y-%m-%d", item.updated_at) or "unknown"
+      return string.format("%s [%s] (%s)", item.title or "Untitled", item.status or "active", updated)
+    end,
+  }, function(choice)
+    if choice then
+      M.set_active_subject(choice.id)
+      vim.notify(string.format("AuditScope: Active subject set to %s", choice.title or choice.id), vim.log.levels.INFO)
+    end
+  end)
+end
+
+M.try_select_mind = M.select_subject
+
+function M.get_repo_context()
+  local git_root = vim.fs.root(0, ".git")
+  if not git_root then
+    return { root = nil, name = nil, commit = nil, remote = nil }
   end
 
-  -- 更新内部状态信息
-  M.project_info = {
+  local project_name = vim.fn.fnamemodify(git_root, ":t")
+
+  local commit_hash = vim.fn.systemlist("git rev-parse --short HEAD")[1]
+  if vim.v.shell_error ~= 0 or not commit_hash then
+    commit_hash = nil
+  end
+
+  local remote = vim.fn.systemlist("git remote get-url origin")[1]
+  if vim.v.shell_error ~= 0 or not remote then
+    remote = nil
+  end
+
+  return {
     root = git_root,
     name = project_name,
     commit = commit_hash,
+    remote = remote,
   }
+end
 
-  -- 构建存储目录: <GitRoot>/.auditscope.mind/
-  local storage_dir = Path:new(git_root)
-  if not storage_dir then
-    vim.notify("AuditScope: Failed to create Path object for storage directory.", vim.log.levels.ERROR)
-    return nil -- Or handle error appropriately
-  end
-  storage_dir = Path.joinpath(storage_dir, ".auiditscope.mind")
+function M.set_commit(commit_hash)
+  local ctx = M.get_repo_context()
+  local root = ctx.root or "nogit"
 
-  -- 确保目录存在
-  if not storage_dir:exists() then
-    storage_dir:mkdir({ parents = true })
+  if commit_hash == nil or commit_hash == "" then
+    vim.notify("AuditScope: No commit hash provided, locking to current commit.", vim.log.levels.INFO)
+    commit_hash = ctx.commit
   end
 
-  -- 构建文件名: <ProjectName>_<CommitHash>.json
-  local filename = string.format("%s_%s.json", project_name, commit_hash)
-  M.file_path = Path.joinpath(storage_dir, filename)
+  if not commit_hash then
+    vim.notify("AuditScope: No commit available to lock.", vim.log.levels.WARN)
+    return nil
+  end
 
-  -- 尝试加载现有数据，如果文件不存在则初始化为空
-  M.load()
+  M.locked_commits[root] = commit_hash
+  vim.notify(string.format("AuditScope: Commit locked to %s", commit_hash), vim.log.levels.INFO)
 
-  vim.notify(
-    string.format("AuditMind Session Started:\nProject: %s\nCommit: %s", project_name, commit_hash),
-    vim.log.levels.INFO
-  )
+  return commit_hash
+end
 
-  return M.project_info
+function M.unlock_commit()
+  local ctx = M.get_repo_context()
+  local root = ctx.root or "nogit"
+  M.locked_commits[root] = nil
+  vim.notify("AuditScope: Commit lock released", vim.log.levels.INFO)
+end
+
+function M.get_effective_commit()
+  local ctx = M.get_repo_context()
+  local root = ctx.root or "nogit"
+  return M.locked_commits[root] or ctx.commit
+end
+
+function M.TryLoadMind()
+  M.load_state()
+  if M.active_subject_id then
+    return M.set_active_subject(M.active_subject_id)
+  end
+  return nil
+end
+
+function M.CreateMind(opts)
+  opts = opts or {}
+  local ctx = M.get_repo_context()
+  local title = opts.title or opts.project_name or ctx.name or ("Subject " .. os.date("%Y-%m-%d %H:%M"))
+  local meta = M.create_subject(title, { status = opts.status, scope = opts.scope })
+  vim.notify(string.format("AuditScope: Subject created: %s", meta.title), vim.log.levels.INFO)
+  return meta
 end
 
 function M.load()
   if M.file_path and M.file_path:exists() then
     local content = M.file_path:read()
     local ok, decoded = pcall(vim.json.decode, content)
-    if ok then
+    if ok and type(decoded) == "table" then
       M.data = decoded
     else
-      M.data = { nodes = {}, edges = {}, glance = {} }
+      M.data = { subject = nil, nodes = {}, edges = {}, glance = {} }
     end
   else
-    M.data = { nodes = {}, edges = {}, glance = {} }
+    M.data = { subject = nil, nodes = {}, edges = {}, glance = {} }
   end
+
+  M.data.nodes = M.data.nodes or {}
+  M.data.edges = M.data.edges or {}
+  M.data.glance = M.data.glance or {}
+
+  return M.data
 end
 
--- 检查 DB 是否已初始化
 local function ensure_initialized()
-  if not M.file_path then
-    vim.notify("AuditMind DB not initialized. Please run :AuditCreateMind first.", vim.log.levels.ERROR)
+  if not M.file_path or not M.data.subject then
+    vim.notify("AuditScope: No active subject. Run :AuditSubjectNew or :AuditSubjectSelect.", vim.log.levels.ERROR)
     return false
   end
   return true
+end
+
+function M.set_summary(summary)
+  if not ensure_initialized() then
+    return nil
+  end
+  M.data.subject.summary = summary or ""
+  M.save()
+  return M.data.subject.summary
 end
 
 function M.save()
@@ -271,16 +554,16 @@ function M.save()
     return
   end
 
-  M.file_path:write(vim.json.encode(M.data), "w")
+  M.touch_subject()
+  save_json(M.file_path, M.data)
 
-  -- 通知 UI 刷新 (使用安全调用以防循环依赖)
-  local has_signs, signs = pcall(require, "auditscope.mind.signs")
-  if has_signs then
+  local has_signs, signs = pcall(require, "custom_plugins.auditscope.mind.sign")
+  if has_signs and signs.refresh then
     signs.refresh()
   end
 
-  local has_ui, ui = pcall(require, "auditscope.mind.ui")
-  if has_ui then
+  local has_ui, ui = pcall(require, "custom_plugins.auditscope.mind.ui")
+  if has_ui and ui.refresh_dashboard then
     ui.refresh_dashboard()
   end
 end

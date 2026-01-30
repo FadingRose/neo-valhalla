@@ -225,21 +225,6 @@ vim.keymap.set("x", "<leader>cr", clear_markdown_formatting, {
 -- vim.keymap.del({ "n", "v" }, "<leader>n")
 
 local audit_mind = require("custom_plugins.auditscope.mind")
-vim.keymap.set({ "n", "v" }, "<leader>oh", function()
-  audit_mind.new_node("hypothesis")
-end, { desc = "Audit: New Hypothesis" })
-
-vim.keymap.set({ "n", "v" }, "<leader>of", function()
-  audit_mind.new_node("fact")
-end, { desc = "Audit: New Fact" })
-
-vim.keymap.set({ "n", "v" }, "<leader>oi", function()
-  audit_mind.new_node("insight")
-end, { desc = "Audit: New Insight" })
-
-vim.keymap.set({ "n", "v" }, "<leader>oq", function()
-  audit_mind.new_node("question")
-end, { desc = "Audit: New Question" })
 
 vim.keymap.set("n", "<leader>oM", function()
   audit_mind.open_dashboard()
@@ -256,6 +241,13 @@ end, { desc = "Audit: Delete Node" })
 vim.keymap.set("n", "<leader>ol", function()
   audit_mind.select_commit()
 end, { desc = "Audit: Select Commit" })
+
+vim.keymap.set("n", "<leader>oC", "<cmd>AuditSubjectNew<CR>", { desc = "Audit: New Subject" })
+vim.keymap.set("n", "<leader>os", "<cmd>AuditSubjectSelect<CR>", { desc = "Audit: Select Subject" })
+vim.keymap.set("n", "<leader>oS", "<cmd>AuditSummary<CR>", { desc = "Audit: Summary" })
+vim.keymap.set("n", "<leader>oR", "<cmd>AuditGenerateReport<CR>", { desc = "Audit: Generate Report" })
+vim.keymap.set({ "n", "v" }, "<leader>on", "<cmd>AuditNote low<CR>", { desc = "Audit: Note (Low)" })
+vim.keymap.set({ "n", "v" }, "<leader>oN", "<cmd>AuditNote high<CR>", { desc = "Audit: Note (High)" })
 
 vim.keymap.set("n", "=", function()
   audit_mind.increment_glance()
@@ -280,12 +272,21 @@ local function render_markdown_to_html()
     f:close()
   end
 
+  local working_dir = vim.fn.expand("%:p:h")
+
   local pandoc_args = {
     "pandoc",
+    "-f",
+    "gfm",
     "--mathjax",
     "--highlight-style=pygments",
+<<<<<<< HEAD
     "--embed-resources", -- Embed images into the HTML
     "--resource-path=" .. vim.fn.shellescape(working_dir .. ":."), -- Search in working dir and sub-paths
+=======
+    "--embed-resources",
+    "--resource-path=" .. vim.fn.shellescape(working_dir .. ":."),
+>>>>>>> 5aaedff (2026-01-30 18:34:15)
     "-s",
     vim.fn.shellescape(tmp_md),
     "-V",
@@ -313,7 +314,18 @@ vim.api.nvim_create_user_command(
   { desc = "Render Markdown to HTML and open" }
 )
 
+local term_buf = nil
 vim.keymap.set("n", "<leader>tc", function()
   vim.cmd("vsplit")
-  vim.cmd("terminal")
-end, { desc = "Open Claude in vertical split" })
+
+  -- Check if buffer exists and is valid
+  if term_buf and vim.api.nvim_buf_is_valid(term_buf) then
+    vim.api.nvim_set_current_buf(term_buf)
+  else
+    -- Create new terminal buffer
+    vim.cmd("terminal")
+    term_buf = vim.api.nvim_get_current_buf()
+    -- Hide from buffer line/tabline
+    vim.api.nvim_set_option_value("buflisted", false, { buf = term_buf })
+  end
+end, { desc = "Open persistent Terminal in vertical split" })
