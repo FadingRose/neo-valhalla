@@ -96,6 +96,12 @@ vim.keymap.set("x", "<leader>cwo", 'c`<C-r>"`<Esc>', {
   desc = "Wrap selection with ``",
 })
 
+vim.keymap.set("x", "<leader>cwb", 'c**<C-r>"**<Esc>', {
+  noremap = true,
+  silent = true,
+  desc = "Wrap selection with ** **",
+})
+
 vim.keymap.set("x", "<leader>cwc", 'c\\code{<C-r>"}<Esc>', {
   noremap = true,
   silent = true,
@@ -273,13 +279,16 @@ local function render_markdown_to_html()
   end
 
   local working_dir = vim.fn.expand("%:p:h")
+  local solidity_syntax = vim.fn.expand("~/.config/nvim/syntax/solidity.xml")
 
   local pandoc_args = {
     "pandoc",
     "-f",
     "gfm",
     "--mathjax",
-    "--highlight-style=pygments",
+    "--syntax-definition=" .. vim.fn.shellescape(solidity_syntax),
+    "--highlight-style=kate",
+    "--standalone",
     "--embed-resources",
     "--resource-path=" .. vim.fn.shellescape(working_dir .. ":."),
     "-s",

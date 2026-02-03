@@ -238,13 +238,13 @@ local function show_input_buffer(title, initial_value, on_submit, node_context)
       text = {
         top = " " .. title .. " ",
         top_align = "center",
-        bottom = " <C-s> Submit | <Esc> Cancel" .. (node_context and " | <C-l> Link | <C-d> Unlink " or " "),
+        bottom = " <C-s>/<CR> Submit | <Esc>/<C-c>/q Cancel" .. (node_context and " | <C-l> Link | <C-d> Unlink " or " "),
         bottom_align = "center",
       },
     },
     -- If using layout, size/position controlled by layout, else default
     position = node_context and nil or "50%",
-    size = node_context and nil or { width = "60%", height = "40%" },
+    size = node_context and nil or { width = "75%", height = "55%" },
   })
 
   local layout = nil
@@ -263,11 +263,11 @@ local function show_input_buffer(title, initial_value, on_submit, node_context)
     layout = Layout(
       {
         position = "50%",
-        size = { width = "60%", height = "50%" },
+        size = { width = "75%", height = "60%" },
       },
       Layout.Box({
-        Layout.Box(info_popup, { size = "30%" }),
-        Layout.Box(input_popup, { size = "70%" }),
+        Layout.Box(info_popup, { size = "35%" }),
+        Layout.Box(input_popup, { size = "65%" }),
       }, { dir = "col" })
     )
   end
@@ -312,8 +312,14 @@ local function show_input_buffer(title, initial_value, on_submit, node_context)
   if layout then
     layout:mount()
     refresh_info()
+    if info_popup and info_popup.bufnr then
+      vim.b[info_popup.bufnr].auditscope_dashboard = true
+    end
   else
     input_popup:mount()
+  end
+  if input_popup and input_popup.bufnr then
+    vim.b[input_popup.bufnr].auditscope_dashboard = true
   end
 
   -- Set Content
@@ -344,7 +350,11 @@ local function show_input_buffer(title, initial_value, on_submit, node_context)
   -- Mappings
   input_popup:map("n", "<C-s>", submit)
   input_popup:map("i", "<C-s>", submit)
+  input_popup:map("n", "<CR>", submit)
   input_popup:map("n", "<Esc>", close)
+  input_popup:map("n", "q", close)
+  input_popup:map("n", "<C-c>", close)
+  input_popup:map("i", "<C-c>", close)
 
   -- Add extra mappings if context exists
   if node_context then
@@ -379,6 +389,7 @@ local function show_input_split(title, initial_value, on_submit)
   vim.bo[buf].swapfile = false
   vim.bo[buf].filetype = "markdown"
   vim.bo[buf].modifiable = true
+  vim.b[buf].auditscope_dashboard = true
 
   vim.wo[win].wrap = true
   vim.wo[win].number = false
@@ -417,6 +428,29 @@ local function show_input_split(title, initial_value, on_submit)
   vim.keymap.set({ "n", "i" }, "<C-s>", submit, { buffer = buf })
   vim.keymap.set({ "n", "i" }, "<Esc>", submit, { buffer = buf })
   vim.keymap.set({ "n", "i" }, "<C-c>", cancel, { buffer = buf })
+end
+
+local function edit_node_text(node, opts)
+  if not node then
+    return
+  end
+
+  opts = opts or {}
+  local input_fn = show_input_split
+  if opts.input == "popup" then
+    input_fn = show_input_buffer
+  end
+
+  input_fn("Modify Node", node.text or "", function(value)
+    if value and #value > 0 then
+      node.text = value
+      db.update_node(node)
+      print("Node modified: " .. value)
+      if dashboard then
+        M.refresh_dashboard()
+      end
+    end
+  end, node)
 end
 
 -- Pin window management
@@ -636,6 +670,9 @@ end
 function M.toggle_dashboard()
   if dashboard and dashboard.layout then
     dashboard.layout:unmount()
+    if dashboard.focus_augroup then
+      pcall(vim.api.nvim_del_augroup_by_id, dashboard.focus_augroup)
+    end
     dashboard = nil
     return
   end
@@ -663,7 +700,7 @@ function M.toggle_dashboard()
 
   local detail_popup = Popup({
     enter = false,
-    focusable = false,
+    focusable = true,
     border = { style = "rounded", text = { top = " Details " } },
   })
 
@@ -698,11 +735,26 @@ function M.toggle_dashboard()
   }
 
   layout:mount()
+  if tab_popup.bufnr then
+    vim.b[tab_popup.bufnr].auditscope_dashboard = true
+  end
+  if partition_popup.bufnr then
+    vim.b[partition_popup.bufnr].auditscope_dashboard = true
+  end
+  if list_popup.bufnr then
+    vim.b[list_popup.bufnr].auditscope_dashboard = true
+  end
+  if detail_popup.bufnr then
+    vim.b[detail_popup.bufnr].auditscope_dashboard = true
+  end
   update_tab_popup()
 
   local function close_dashboard()
     if dashboard and dashboard.layout then
       dashboard.layout:unmount()
+      if dashboard.focus_augroup then
+        pcall(vim.api.nvim_del_augroup_by_id, dashboard.focus_augroup)
+      end
       dashboard = nil
     end
   end
@@ -719,6 +771,12 @@ function M.toggle_dashboard()
     end
   end
 
+  local function focus_details()
+    if dashboard and dashboard.detail_popup and dashboard.detail_popup.winid then
+      vim.api.nvim_set_current_win(dashboard.detail_popup.winid)
+    end
+  end
+
   local function toggle_tab()
     if not dashboard then
       return
@@ -729,6 +787,60 @@ function M.toggle_dashboard()
     update_tab_popup()
     M.refresh_dashboard()
   end
+
+  local function is_allowed_window(winid)
+    if not winid or not vim.api.nvim_win_is_valid(winid) then
+      return false
+    end
+    local buf = vim.api.nvim_win_get_buf(winid)
+    if vim.b[buf].auditscope_dashboard then
+      return true
+    end
+    local cfg = vim.api.nvim_win_get_config(winid)
+    return cfg and cfg.relative and cfg.relative ~= ""
+  end
+
+  dashboard.focus_augroup = vim.api.nvim_create_augroup("AuditScopeDashboard", { clear = true })
+  dashboard.last_focus_winid = partition_popup.winid
+  dashboard._forcing_focus = false
+
+  vim.api.nvim_create_autocmd("WinEnter", {
+    group = dashboard.focus_augroup,
+    callback = function()
+      if not dashboard then
+        return
+      end
+
+      local winid = vim.api.nvim_get_current_win()
+      if is_allowed_window(winid) then
+        dashboard.last_focus_winid = winid
+        return
+      end
+
+      if dashboard._forcing_focus then
+        return
+      end
+
+      local target = dashboard.last_focus_winid
+      if not is_allowed_window(target) then
+        target = dashboard.list_popup and dashboard.list_popup.winid
+          or dashboard.partition_popup and dashboard.partition_popup.winid
+          or dashboard.detail_popup and dashboard.detail_popup.winid
+      end
+
+      if is_allowed_window(target) then
+        dashboard._forcing_focus = true
+        vim.schedule(function()
+          if dashboard and is_allowed_window(target) then
+            vim.api.nvim_set_current_win(target)
+          end
+          if dashboard then
+            dashboard._forcing_focus = false
+          end
+        end)
+      end
+    end,
+  })
 
   -- 快捷键：回车跳转到代码
   list_popup:map("n", "<CR>", function()
@@ -743,6 +855,16 @@ function M.toggle_dashboard()
       vim.api.nvim_win_set_cursor(0, { node.data.start_line, 0 })
     end
   end)
+  list_popup:map("n", "m", function()
+    local tree = dashboard and dashboard.list_tree or nil
+    if not tree then
+      return
+    end
+    local node = tree:get_node()
+    if node and node.data then
+      edit_node_text(node.data, { input = "popup" })
+    end
+  end)
 
   partition_popup:map("n", "q", close_dashboard)
   partition_popup:map("n", "t", toggle_tab)
@@ -750,8 +872,36 @@ function M.toggle_dashboard()
 
   list_popup:map("n", "q", close_dashboard)
   list_popup:map("n", "t", toggle_tab)
-  list_popup:map("n", "<S-Tab>", focus_partitions)
   list_popup:map("n", "<Tab>", focus_partitions)
+  list_popup:map("n", "<S-Tab>", focus_details)
+  list_popup:map("n", "l", focus_details)
+
+  detail_popup:map("n", "q", close_dashboard)
+  detail_popup:map("n", "t", toggle_tab)
+  detail_popup:map("n", "<Tab>", focus_list)
+  detail_popup:map("n", "<S-Tab>", focus_partitions)
+  detail_popup:map("n", "<CR>", function()
+    local tree = dashboard and dashboard.list_tree or nil
+    if not tree then
+      return
+    end
+    local node = tree:get_node()
+    if node and node.data and node.data.file then
+      close_dashboard()
+      vim.cmd("e " .. node.data.file)
+      vim.api.nvim_win_set_cursor(0, { node.data.start_line, 0 })
+    end
+  end)
+  detail_popup:map("n", "m", function()
+    local tree = dashboard and dashboard.list_tree or nil
+    if not tree then
+      return
+    end
+    local node = tree:get_node()
+    if node and node.data then
+      edit_node_text(node.data, { input = "popup" })
+    end
+  end)
 
   vim.api.nvim_create_autocmd("CursorMoved", {
     buffer = partition_popup.bufnr,
@@ -832,7 +982,7 @@ function M.refresh_dashboard_details()
 
   add_line(string.format("Type: %s", data.type or "note"))
   add_line("")
-  add_line("Keys: <CR> open | t tabs | <Tab> focus | q close")
+  add_line("Keys: <CR> open | m modify | t tabs | <Tab>/<S-Tab> focus | q close")
   add_line("")
   add_line("Text:")
   local wrapped = wrap_text(data.text or "", width)
@@ -902,13 +1052,17 @@ function M.refresh_dashboard_partitions()
     )
   end
 
-  dashboard.partition_tree = NuiTree({
-    nodes = partition_nodes,
-    bufnr = dashboard.partition_popup.bufnr,
-    get_node_id = function(node)
-      return node.data and node.data.key or tostring(node.text)
-    end,
-  })
+  if dashboard.partition_tree then
+    dashboard.partition_tree:set_nodes(partition_nodes)
+  else
+    dashboard.partition_tree = NuiTree({
+      nodes = partition_nodes,
+      bufnr = dashboard.partition_popup.bufnr,
+      get_node_id = function(node)
+        return node.data and node.data.key or tostring(node.text)
+      end,
+    })
+  end
   dashboard.partition_tree:render()
 
   local selected_key = dashboard.selected_partition_key
@@ -960,13 +1114,17 @@ function M.refresh_dashboard_list()
     end
   end
 
-  dashboard.list_tree = NuiTree({
-    nodes = list_nodes,
-    bufnr = dashboard.list_popup.bufnr,
-    get_node_id = function(node)
-      return node.data and node.data.id or tostring(node.text)
-    end,
-  })
+  if dashboard.list_tree then
+    dashboard.list_tree:set_nodes(list_nodes)
+  else
+    dashboard.list_tree = NuiTree({
+      nodes = list_nodes,
+      bufnr = dashboard.list_popup.bufnr,
+      get_node_id = function(node)
+        return node.data and node.data.id or tostring(node.text)
+      end,
+    })
+  end
   dashboard.list_tree:render()
 
   if dashboard.selected_node_id then
@@ -1113,17 +1271,7 @@ function M.modify_node()
     local node_to_modify = node_map[choice]
 
     if node_to_modify then
-      -- Pass node_to_modify to show_input_buffer context
-      show_input_split("Modify Node", node_to_modify.text, function(value)
-        if value and #value > 0 then
-          node_to_modify.text = value
-          db.update_node(node_to_modify)
-          print("Node modified: " .. value)
-          if dashboard then
-            M.refresh_dashboard()
-          end
-        end
-      end, node_to_modify)
+      edit_node_text(node_to_modify)
     end
   end)
 end
