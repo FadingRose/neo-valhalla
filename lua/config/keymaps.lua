@@ -2,6 +2,10 @@
 -- Default keymaps that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/keymaps.lua
 -- Add any additional keymaps here
 
+-- tab-extend
+vim.keymap.set("n", "<leader>tl", "<cmd>TabList<CR>", { desc = "Tabs: List and switch" })
+vim.keymap.set("n", "<leader>tn", "<cmd>TabRename<CR>", { desc = "Tabs: Rename current" })
+
 -- vim.keymap.set("n", "<leader>td", function()
 --   require("custom_plugins.todo").open_today_todo_popup()
 -- end, { desc = "Open Today's Todos" })

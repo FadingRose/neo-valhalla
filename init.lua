@@ -17,6 +17,7 @@ require("custom_plugins.solidity-state-variable-highlighter").setup()
 require("grammar-guard").init()
 
 require("custom_plugins.audit-toolkit").setup({})
+require("custom_plugins.tab-extend").setup({})
 
 -- now the w and b only move cursor at the same line
 vim.cmd([[
