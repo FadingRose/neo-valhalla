@@ -36,6 +36,8 @@ Public functions exposed after `setup()`:
 - `:AuditLockCommit [hash]` → lock to a commit hash (shortened to current short length)
 - `:AuditUnlockCommit`
 - `:AuditPin` / `:AuditUnpin`
+- `:AuditAddSnippet` → attach a code snippet to an existing node
+- `:AuditDeleteSnippet` → delete a code snippet from a node
 - `:AuditToggleTrace` → toggle auto-trace glance counting
 - `:AuditCleanGlance` → reset glance counts for current file
 - `:AuditToggleShowGlance` → toggle glance bars rendering
@@ -44,7 +46,8 @@ Public functions exposed after `setup()`:
 - Storage directory (note typo): `<git_root>/.auiditscope.mind/`
 - Filename: `<ProjectName>_<CommitHash>.json`
 - Schema:
-  - `nodes`: `{ id, type, text, file, start_line, end_line, code_snippet, timestamp }`
+  - `nodes`: `{ id, type, text, file, start_line, end_line, code_snippet, codesnippets, timestamp }`
+  - `codesnippets`: `{ text, file, start_line, end_line, timestamp, commit, repo_root, repo_name, repo_remote }`
   - `edges`: `{ from, to, relation }`
   - `glance`: `{ [file]: { [line_string]: count } }`
 

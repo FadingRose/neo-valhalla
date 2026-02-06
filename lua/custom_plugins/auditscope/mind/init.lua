@@ -53,6 +53,8 @@ function M.setup(opts)
   M.new_node = M.ui.create_node
   M.open_dashboard = M.ui.toggle_dashboard
   M.add_link = M.ui.link_node
+  M.add_code_snippet = M.ui.add_code_snippet
+  M.delete_code_snippet = M.ui.delete_code_snippet
   M.delete_node = function()
     M.ui.delete_node()
     M.sign.refresh()
@@ -174,6 +176,14 @@ function M.setup(opts)
       end
     end)
   end, { nargs = "?", desc = "Create a note for the active subject" })
+
+  vim.api.nvim_create_user_command("AuditAddSnippet", function()
+    M.ui.add_code_snippet()
+  end, { desc = "Add a code snippet to an existing node" })
+
+  vim.api.nvim_create_user_command("AuditDeleteSnippet", function()
+    M.ui.delete_code_snippet()
+  end, { desc = "Delete a code snippet from a node" })
   vim.api.nvim_create_user_command("AuditLockCommit", function(args)
     local commit = args.args ~= "" and args.args or nil
     M.db.set_commit(commit)

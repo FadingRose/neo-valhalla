@@ -108,26 +108,36 @@ local function update_tab_popup()
 end
 
 -- 辅助：获取当前上下文
-local function get_context()
+local function get_context(opts)
+  opts = opts or {}
   local file = vim.fn.expand("%:p")
   local current_line_num = vim.api.nvim_win_get_cursor(0)[1]
   local selected_text = ""
   local start_line_to_use = current_line_num
   local end_line_to_use = current_line_num
+  local start_col_to_use = nil
+  local end_col_to_use = nil
 
   local mode = vim.fn.mode()
-  if mode:find("v") then -- Check if in any visual mode ('v', 'V', '^V')
+  if opts.use_visual or mode:find("v") then -- Check if in any visual mode ('v', 'V', '^V')
     local start_cursor_pos = vim.api.nvim_buf_get_mark(0, "<")
     local end_cursor_pos = vim.api.nvim_buf_get_mark(0, ">")
 
-    if start_cursor_pos and end_cursor_pos then
+    if start_cursor_pos and end_cursor_pos and start_cursor_pos[1] > 0 and end_cursor_pos[1] > 0 then
       local start_line = start_cursor_pos[1]
       local end_line = end_cursor_pos[1]
       local start_col = start_cursor_pos[2]
       local end_col = end_cursor_pos[2]
 
+      if start_line > end_line then
+        start_line, end_line = end_line, start_line
+        start_col, end_col = end_col, start_col
+      end
+
       start_line_to_use = start_line
       end_line_to_use = end_line
+      start_col_to_use = start_col
+      end_col_to_use = end_col
 
       local lines = vim.api.nvim_buf_get_lines(0, start_line - 1, end_line, false)
 
@@ -155,6 +165,8 @@ local function get_context()
     file = file,
     start_line = start_line_to_use,
     end_line = end_line_to_use,
+    start_col = start_col_to_use,
+    end_col = end_col_to_use,
     text = selected_text,
     repo = repo_context,
     commit = effective_commit,
@@ -169,6 +181,79 @@ local function format_line_range(start_line, end_line)
     return tostring(start_line)
   end
   return string.format("%d-%d", start_line, end_line)
+end
+
+local function extract_selection_lines(ctx)
+  if not ctx or not ctx.start_line or not ctx.end_line then
+    return { "" }
+  end
+
+  local lines = vim.api.nvim_buf_get_lines(0, ctx.start_line - 1, ctx.end_line, false)
+  if #lines == 0 then
+    return { "" }
+  end
+
+  if ctx.start_col and ctx.end_col then
+    if ctx.start_line == ctx.end_line then
+      lines[1] = lines[1]:sub(ctx.start_col + 1, ctx.end_col + 1)
+    else
+      lines[1] = lines[1]:sub(ctx.start_col + 1)
+      lines[#lines] = lines[#lines]:sub(1, ctx.end_col + 1)
+    end
+  end
+
+  return lines
+end
+
+local function build_codesnippet(ctx)
+  ctx = ctx or get_context()
+  local selection_lines = extract_selection_lines(ctx)
+  local start_line = ctx.start_line or 1
+  local end_line = ctx.end_line or start_line
+
+  local filename = ""
+  if ctx.file then
+    filename = vim.fn.fnamemodify(ctx.file, ":t")
+  end
+  if filename == "" then
+    filename = "untitled"
+  end
+
+  local lang = vim.bo.filetype
+  if not lang or lang == "" then
+    lang = "text"
+  end
+
+  local line_range = format_line_range(start_line, end_line)
+
+  local numbered_lines = {}
+  local max_line_width = #tostring(end_line)
+  if #selection_lines == 0 or (selection_lines[1] == "" and #selection_lines == 1) then
+    table.insert(numbered_lines, string.format("%" .. max_line_width .. "d|  ", start_line))
+  else
+    for i, line in ipairs(selection_lines) do
+      local line_num = start_line + i - 1
+      local formatted_line = string.format("%" .. max_line_width .. "d|  %s", line_num, line)
+      table.insert(numbered_lines, formatted_line)
+    end
+  end
+
+  local header = string.format("/// %s:%s", filename, line_range)
+  local content = string.format("```%s\n %s\n%s\n```", lang, header, table.concat(numbered_lines, "\n"))
+
+  local repo = ctx.repo or {}
+
+  return {
+    text = content,
+    file = ctx.file,
+    start_line = start_line,
+    end_line = end_line,
+    timestamp = os.time(),
+    commit = ctx.commit or repo.commit,
+    repo_root = repo.root,
+    repo_name = repo.name,
+    repo_remote = repo.remote,
+  }
 end
 
 local function unlink_node(source_node, on_complete)
@@ -585,6 +670,7 @@ function M.create_node(type, opts)
   input_fn("New " .. type, "", function(value)
     if value and #value > 0 then
       local repo = ctx.repo or {}
+      local snippet = build_codesnippet(ctx)
       local node = {
         id = tostring(os.time()) .. math.random(100, 999),
         type = type,
@@ -593,6 +679,7 @@ function M.create_node(type, opts)
         start_line = ctx.start_line,
         end_line = ctx.end_line,
         code_snippet = ctx.text,
+        codesnippets = snippet and { snippet } or {},
         repo_root = repo.root,
         repo_name = repo.name,
         repo_remote = repo.remote,
@@ -607,6 +694,149 @@ function M.create_node(type, opts)
         M.link_node(node)
       end, 100)
     end
+  end)
+end
+
+function M.add_code_snippet(opts)
+  local nodes = db.get_nodes()
+  if #nodes == 0 then
+    vim.notify("AuditScope: No nodes found. Create a node first.", vim.log.levels.INFO)
+    return
+  end
+
+  local items = {}
+  local node_map = {}
+  for _, n in ipairs(nodes) do
+    local label = string.format(
+      "%s %s (%s:%s)",
+      config.icons[n.type] or "🔹",
+      n.text or "untitled",
+      vim.fn.fnamemodify(n.file or "", ":t"),
+      format_line_range(n.start_line, n.end_line)
+    )
+    table.insert(items, label)
+    node_map[label] = n
+  end
+
+  vim.ui.select(items, { prompt = "Add snippet to node:" }, function(choice)
+    if not choice then
+      return
+    end
+    local node = node_map[choice]
+    if not node then
+      return
+    end
+
+    local ctx = get_context(opts)
+    local snippet = build_codesnippet(ctx)
+    node.codesnippets = node.codesnippets or {}
+    table.insert(node.codesnippets, snippet)
+    if not node.code_snippet or node.code_snippet == "" then
+      node.code_snippet = ctx.text
+    end
+    db.update_node(node)
+    vim.notify("AuditScope: Snippet added.", vim.log.levels.INFO)
+    if dashboard then
+      M.refresh_dashboard_details()
+    end
+  end)
+end
+
+function M.delete_code_snippet()
+  local nodes = db.get_nodes()
+  if #nodes == 0 then
+    vim.notify("AuditScope: No nodes found.", vim.log.levels.INFO)
+    return
+  end
+
+  local items = {}
+  local node_map = {}
+  for _, n in ipairs(nodes) do
+    local label = string.format(
+      "%s %s (%s:%s)",
+      config.icons[n.type] or "🔹",
+      n.text or "untitled",
+      vim.fn.fnamemodify(n.file or "", ":t"),
+      format_line_range(n.start_line, n.end_line)
+    )
+    table.insert(items, label)
+    node_map[label] = n
+  end
+
+  vim.ui.select(items, { prompt = "Delete snippet from node:" }, function(choice)
+    if not choice then
+      return
+    end
+    local node = node_map[choice]
+    if not node then
+      return
+    end
+
+    local snippets = {}
+    if type(node.codesnippets) == "table" and #node.codesnippets > 0 then
+      snippets = node.codesnippets
+    elseif node.code_snippet and node.code_snippet ~= "" then
+      snippets = {
+        {
+          text = node.code_snippet,
+          file = node.file,
+          start_line = node.start_line,
+          end_line = node.end_line,
+          commit = node.commit,
+        },
+      }
+    else
+      vim.notify("AuditScope: No snippets on this node.", vim.log.levels.INFO)
+      return
+    end
+
+    local snippet_items = {}
+    local snippet_map = {}
+    for i, snippet in ipairs(snippets) do
+      local header_parts = {}
+      if snippet.file then
+        table.insert(header_parts, vim.fn.fnamemodify(snippet.file, ":."))
+      end
+      if snippet.start_line then
+        table.insert(header_parts, format_line_range(snippet.start_line, snippet.end_line))
+      end
+      if snippet.commit then
+        table.insert(header_parts, "@" .. snippet.commit)
+      end
+      local header = #header_parts > 0 and table.concat(header_parts, ":") or "snippet"
+      local label = string.format("[%d] %s", i, header)
+      table.insert(snippet_items, label)
+      snippet_map[label] = i
+    end
+
+    vim.ui.select(snippet_items, { prompt = "Select snippet to delete:" }, function(snippet_choice)
+      if not snippet_choice then
+        return
+      end
+      local idx = snippet_map[snippet_choice]
+      if not idx then
+        return
+      end
+
+      if type(node.codesnippets) == "table" and #node.codesnippets > 0 then
+        table.remove(node.codesnippets, idx)
+      else
+        node.codesnippets = {}
+      end
+
+      if node.codesnippets and #node.codesnippets > 0 then
+        local latest = node.codesnippets[#node.codesnippets]
+        node.code_snippet = latest and latest.text or ""
+      else
+        node.code_snippet = ""
+      end
+
+      db.update_node(node)
+      vim.notify("AuditScope: Snippet deleted.", vim.log.levels.INFO)
+      if dashboard then
+        M.refresh_dashboard_details()
+      end
+    end)
   end)
 end
 
@@ -1004,6 +1234,64 @@ function M.refresh_dashboard_details()
   if data.commit then
     add_line("Commit: " .. data.commit)
   end
+  if data.codesnippets then
+    add_line("Snippets: " .. tostring(#data.codesnippets))
+  end
+
+  local function append_snippets()
+    local snippets = {}
+    if type(data.codesnippets) == "table" then
+      for _, snippet in ipairs(data.codesnippets) do
+        if snippet and snippet.text and snippet.text ~= "" then
+          table.insert(snippets, snippet)
+        end
+      end
+    end
+    if #snippets == 0 and data.code_snippet and data.code_snippet ~= "" then
+      table.insert(snippets, {
+        text = data.code_snippet,
+        file = data.file,
+        start_line = data.start_line,
+        end_line = data.end_line,
+        commit = data.commit,
+      })
+    end
+    if #snippets == 0 then
+      return
+    end
+
+    add_line("")
+    add_line("Snippets:")
+    for i, snippet in ipairs(snippets) do
+      local header_parts = {}
+      if snippet.file then
+        table.insert(header_parts, vim.fn.fnamemodify(snippet.file, ":."))
+      end
+      if snippet.start_line then
+        table.insert(header_parts, format_line_range(snippet.start_line, snippet.end_line))
+      end
+      if snippet.commit then
+        table.insert(header_parts, "@" .. snippet.commit)
+      end
+
+      if #header_parts > 0 then
+        table.insert(lines, string.format("  [%d] %s", i, table.concat(header_parts, ":")))
+      else
+        table.insert(lines, string.format("  [%d]", i))
+      end
+
+      if snippet.text and snippet.text ~= "" then
+        local snippet_lines = vim.split(snippet.text, "\n", { plain = true })
+        for _, line in ipairs(snippet_lines) do
+          table.insert(lines, "    " .. line)
+        end
+      else
+        table.insert(lines, "    (empty)")
+      end
+    end
+  end
+
+  append_snippets()
 
   local edges = db.get_edges()
   local incoming = {}

@@ -529,6 +529,30 @@ function M.load()
   M.data.edges = M.data.edges or {}
   M.data.glance = M.data.glance or {}
 
+  local migrated = false
+  for _, node in ipairs(M.data.nodes) do
+    if type(node.codesnippets) ~= "table" then
+      node.codesnippets = {}
+    end
+    if #node.codesnippets == 0 and node.code_snippet and node.code_snippet ~= "" then
+      table.insert(node.codesnippets, {
+        text = node.code_snippet,
+        file = node.file,
+        start_line = node.start_line,
+        end_line = node.end_line,
+        timestamp = node.timestamp,
+        commit = node.commit,
+        repo_root = node.repo_root,
+        repo_name = node.repo_name,
+        repo_remote = node.repo_remote,
+      })
+      migrated = true
+    end
+  end
+  if migrated and M.file_path then
+    save_json(M.file_path, M.data)
+  end
+
   return M.data
 end
 

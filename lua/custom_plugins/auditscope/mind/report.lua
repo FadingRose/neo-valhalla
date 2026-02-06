@@ -89,6 +89,21 @@ local function format_repo_label(node)
   return nil
 end
 
+local function collect_snippets(node)
+  local snippets = {}
+  if node and type(node.codesnippets) == "table" then
+    for _, snippet in ipairs(node.codesnippets) do
+      if snippet and snippet.text and snippet.text ~= "" then
+        table.insert(snippets, snippet.text)
+      end
+    end
+  end
+  if #snippets == 0 and node and node.code_snippet and node.code_snippet ~= "" then
+    table.insert(snippets, node.code_snippet)
+  end
+  return snippets
+end
+
 function M.generate(opts)
   opts = opts or {}
 
@@ -174,6 +189,17 @@ function M.generate(opts)
       if #fields > 0 then
         table.insert(lines, "  " .. table.concat(fields, " | "))
       end
+      local snippets = collect_snippets(n)
+      if #snippets > 0 then
+        table.insert(lines, "  Snippets:")
+        for _, snippet in ipairs(snippets) do
+          local snippet_lines = vim.split(snippet, "\n", { plain = true })
+          for _, line in ipairs(snippet_lines) do
+            table.insert(lines, "  " .. line)
+          end
+          table.insert(lines, "  ")
+        end
+      end
     end
     table.insert(lines, "")
   end
@@ -212,6 +238,18 @@ function M.generate(opts)
       end
       if #fields > 0 then
         table.insert(lines, table.concat(fields, " | "))
+      end
+      local snippets = collect_snippets(n)
+      if #snippets > 0 then
+        table.insert(lines, "")
+        table.insert(lines, "Snippets:")
+        for _, snippet in ipairs(snippets) do
+          local snippet_lines = vim.split(snippet, "\n", { plain = true })
+          for _, line in ipairs(snippet_lines) do
+            table.insert(lines, line)
+          end
+          table.insert(lines, "")
+        end
       end
       table.insert(lines, "")
     end

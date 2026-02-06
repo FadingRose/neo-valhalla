@@ -51,6 +51,19 @@ local function sanitize(text, max_len)
   return clean
 end
 
+local function get_node_snippet(node)
+  if not node then
+    return ""
+  end
+  if type(node.codesnippets) == "table" and #node.codesnippets > 0 then
+    local snippet = node.codesnippets[#node.codesnippets]
+    if snippet and snippet.text then
+      return snippet.text
+    end
+  end
+  return node.code_snippet or ""
+end
+
 local function format_level_map()
   local items = {}
   for k, v in pairs(ontology.levels or {}) do
@@ -110,7 +123,7 @@ local function build_prompt(source, candidates)
     sanitize(source.text, 400),
     source.file or "",
     source.start_line and source.end_line and (source.start_line .. "-" .. source.end_line) or "",
-    sanitize(source.code_snippet, 400)
+    sanitize(get_node_snippet(source), 400)
   )
 
   local lines = { source_block, "", "CANDIDATES:" }
@@ -126,7 +139,7 @@ local function build_prompt(source, candidates)
       sanitize(n.text, 200),
       n.file or "",
       line_range,
-      sanitize(n.code_snippet, 200)
+      sanitize(get_node_snippet(n), 200)
     ))
   end
 

@@ -258,6 +258,12 @@ vim.keymap.set("n", "<leader>oS", "<cmd>AuditSummary<CR>", { desc = "Audit: Summ
 vim.keymap.set("n", "<leader>oR", "<cmd>AuditGenerateReport<CR>", { desc = "Audit: Generate Report" })
 vim.keymap.set({ "n", "v" }, "<leader>on", "<cmd>AuditNote low<CR>", { desc = "Audit: Note (Low)" })
 vim.keymap.set({ "n", "v" }, "<leader>oN", "<cmd>AuditNote high<CR>", { desc = "Audit: Note (High)" })
+vim.keymap.set("n", "<leader>oa", function()
+  audit_mind.add_code_snippet()
+end, { desc = "Audit: Add Snippet" })
+vim.keymap.set("v", "<leader>oa", function()
+  audit_mind.add_code_snippet({ use_visual = true })
+end, { desc = "Audit: Add Snippet" })
 
 vim.keymap.set("n", "=", function()
   audit_mind.increment_glance()
