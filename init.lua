@@ -18,6 +18,7 @@ require("grammar-guard").init()
 
 require("custom_plugins.audit-toolkit").setup({})
 require("custom_plugins.tab-extend").setup({})
+require("custom_plugins.blaming").setup({})
 
 -- now the w and b only move cursor at the same line
 vim.cmd([[

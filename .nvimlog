@@ -1,0 +1,4 @@
+WRN 2026-03-13T21:54:50.121 ?.61589    server_start:199: Failed to start server: operation not permitted: /var/folders/lr/24frfkd16kb15d706gw_lwhw0000gn/T/nvim.kobayakawayuu/AMNGf5/nvim.61589.0
+WRN 2026-03-13T21:55:13.766 ?.61599    server_start:199: Failed to start server: operation not permitted: /var/folders/lr/24frfkd16kb15d706gw_lwhw0000gn/T/nvim.kobayakawayuu/5PxBff/nvim.61599.0
+WRN 2026-03-13T21:55:33.306 ?.61667    server_start:199: Failed to start server: operation not permitted: /var/folders/lr/24frfkd16kb15d706gw_lwhw0000gn/T/nvim.kobayakawayuu/Zr0Q5E/nvim.61667.0
+WRN 2026-03-13T21:55:33.322 ?.61666    server_start:199: Failed to start server: operation not permitted: /var/folders/lr/24frfkd16kb15d706gw_lwhw0000gn/T/nvim.kobayakawayuu/ygKlkW/nvim.61666.0
