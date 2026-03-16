@@ -11,4 +11,13 @@ return {
   { "rose-pine/neovim", name = "rose-pine" },
   { "Mofiqul/vscode.nvim" },
   { "projekt0n/github-nvim-theme", name = "github-theme" },
+  {
+    "embark-theme/vim",
+    lazy = false,
+    priority = 1000,
+    name = "embark",
+    config = function()
+      vim.cmd.colorscheme("embark")
+    end,
+  },
 }

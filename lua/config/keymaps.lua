@@ -343,3 +343,19 @@ vim.keymap.set("n", "<leader>tc", function()
     vim.api.nvim_set_option_value("buflisted", false, { buf = term_buf })
   end
 end, { desc = "Open persistent Terminal in vertical split" })
+
+vim.keymap.set({ "n", "v" }, "gs", function()
+  local gs = require("gitsigns")
+
+  if vim.fn.mode():match("[vV]") then
+    local start_line = vim.fn.line("v")
+    local end_line = vim.fn.line(".")
+    if start_line > end_line then
+      start_line, end_line = end_line, start_line
+    end
+    gs.stage_hunk({ start_line, end_line })
+  else
+    local lnum = vim.api.nvim_win_get_cursor(0)[1]
+    gs.stage_hunk({ lnum, lnum })
+  end
+end, { desc = "Git stage current line or selection" })
