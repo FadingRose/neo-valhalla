@@ -7,6 +7,15 @@ return {
     "ravitemer/codecompanion-history.nvim",
   },
   opts = {
+    interactions = {
+      chat = {
+        adapter = {
+          name = "opencode",
+          model = "GLM-5",
+        },
+      },
+    },
+
     keys = {
       {
         "<Leader>A",
@@ -578,9 +587,9 @@ return {
       },
     },
     strategies = {
-      chat = { adapter = "openrouter_flash" },
-      inline = { adapter = "openrouter_flash" },
-      agent = { adapter = "openrouter_pro_3" },
+      chat = { adapter = "opencode" },
+      inline = { adapter = "opencode" },
+      agent = { adapter = "opencode" },
     },
     adapters = {
       http = {
@@ -669,6 +678,18 @@ return {
                   "google/gemini-3-flash-preview",
                   "google/gemini-3-flash-preview-preview-09-2025",
                 },
+              },
+            },
+          })
+        end,
+      },
+      acp = {
+        opencode = function()
+          return require("codecompanion.adapters").extend("opencode", {
+            commands = {
+              default = {
+                "opencode",
+                "acp",
               },
             },
           })
