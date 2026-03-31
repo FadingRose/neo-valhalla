@@ -587,9 +587,9 @@ return {
       },
     },
     strategies = {
-      chat = { adapter = "opencode" },
-      inline = { adapter = "opencode" },
-      agent = { adapter = "opencode" },
+      chat = { adapter = "openrouter_flash" },
+      inline = { adapter = "openrouter_flash" },
+      agent = { adapter = "openrouter_flash" },
     },
     adapters = {
       http = {

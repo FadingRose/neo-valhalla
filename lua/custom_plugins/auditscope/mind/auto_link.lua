@@ -117,10 +117,10 @@ end
 
 local function build_prompt(source, candidates)
   local source_block = string.format(
-    "SOURCE NODE:\n[id=%s] type=%s\ntext=%s\nfile=%s\nlines=%s\nsnippet=%s",
+    "SOURCE NODE:\n[id=%s] type=%s\ntitle=%s\nfile=%s\nlines=%s\nsnippet=%s",
     source.id or "",
     source.type or "note",
-    sanitize(source.text, 400),
+    sanitize(source.title, 400),
     source.file or "",
     source.start_line and source.end_line and (source.start_line .. "-" .. source.end_line) or "",
     sanitize(get_node_snippet(source), 400)
@@ -133,10 +133,10 @@ local function build_prompt(source, candidates)
       line_range = n.end_line and (n.start_line .. "-" .. n.end_line) or tostring(n.start_line)
     end
     table.insert(lines, string.format(
-      "[id=%s] type=%s text=%s file=%s lines=%s snippet=%s",
+      "[id=%s] type=%s title=%s file=%s lines=%s snippet=%s",
       n.id or "",
       n.type or "note",
-      sanitize(n.text, 200),
+      sanitize(n.title, 200),
       n.file or "",
       line_range,
       sanitize(get_node_snippet(n), 200)

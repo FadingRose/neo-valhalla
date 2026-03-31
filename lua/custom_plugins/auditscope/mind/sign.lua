@@ -83,7 +83,7 @@ function M.refresh()
         vim.api.nvim_buf_set_extmark(bufnr, NAMESPACE, node.start_line - 1, 0, {
           -- sign_text = config.icons[node.type], -- 移除侧边栏符号设置
           -- sign_hl_group = sign_def.group,      -- 移除侧边栏符号高亮设置
-          virt_text = { { config.icons[node.type] .. " " .. node.text, sign_def.group } }, -- 将图标作为虚拟文本的一部分
+          virt_text = { { config.icons[node.type] .. " " .. node.title, sign_def.group } }, -- 将图标作为虚拟文本的一部分
           virt_text_pos = "eol",
         })
       end

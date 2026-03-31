@@ -171,7 +171,7 @@ function M.generate(opts)
     local idx = 0
     for _, n in ipairs(items) do
       idx = idx + 1
-      local text = sanitize_text(n.text or "")
+      local text = sanitize_text(n.title or "")
       if text == "" then
         text = "(empty)"
       end
@@ -221,7 +221,7 @@ function M.generate(opts)
     local idx = 0
     for _, n in ipairs(items) do
       idx = idx + 1
-      local text = sanitize_text(n.text or "")
+      local text = sanitize_text(n.title or "")
       if text == "" then
         text = "(empty)"
       end

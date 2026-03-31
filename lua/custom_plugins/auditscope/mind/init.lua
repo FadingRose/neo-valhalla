@@ -26,16 +26,23 @@ M.config = {
     min_confidence = 0.35,
     timeout_ms = 30000,
   },
+  cli_path = "auditscope",
+  password = nil,
 }
 
 function M.setup(opts)
   M.config = vim.tbl_deep_extend("force", M.config, opts or {})
+  M.cli = require("custom_plugins.auditscope.mind.cli_bridge")
   M.db = require("custom_plugins.auditscope.mind.db")
   M.ui = require("custom_plugins.auditscope.mind.ui")
   M.sign = require("custom_plugins.auditscope.mind.sign")
   M.report = require("custom_plugins.auditscope.mind.report")
   M.auto_link = require("custom_plugins.auditscope.mind.auto_link")
   M.subject_picker = require("custom_plugins.auditscope.mind.subject_picker")
+  M.cli.setup({
+    cli_path = M.config.cli_path,
+    password = M.config.password,
+  })
   M.db.init()
   M.db.TryLoadMind()
   M.auto_link.setup(M.config)

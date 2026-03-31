@@ -60,10 +60,6 @@ local function telescope_pick(opts)
           actions.close(prompt_bufnr)
           if selection and selection.value and selection.value.id then
             db.set_active_subject(selection.value.id)
-            vim.notify(
-              string.format("AuditScope: Active subject set to %s", selection.value.title or selection.value.id),
-              vim.log.levels.INFO
-            )
           end
         end
 

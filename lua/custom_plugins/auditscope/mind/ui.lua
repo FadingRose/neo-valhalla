@@ -284,7 +284,7 @@ local function unlink_node(source_node, on_complete)
         "%s: %s %s (%s)",
         label_prefix,
         config.icons[other_node.type] or "?",
-        other_node.text,
+        other_node.title,
         vim.fn.fnamemodify(other_node.file, ":t")
       )
       table.insert(links, label)
@@ -382,7 +382,7 @@ local function show_input_buffer(title, initial_value, on_submit, node_context)
       end
 
       if other then
-        table.insert(lines, string.format("%s%s %s", rel_txt, config.icons[other.type] or "*", other.text))
+        table.insert(lines, string.format("%s%s %s", rel_txt, config.icons[other.type] or "*", other.title))
       end
     end
 
@@ -526,9 +526,9 @@ local function edit_node_text(node, opts)
     input_fn = show_input_buffer
   end
 
-  input_fn("Modify Node", node.text or "", function(value)
+  input_fn("Modify Node", node.title or "", function(value)
     if value and #value > 0 then
-      node.text = value
+      node.title = value
       db.update_node(node)
       print("Node modified: " .. value)
       if dashboard then
@@ -583,7 +583,7 @@ local function update_pin_content()
   table.insert(lines, "")
 
   -- Sanitize and wrap text to fit window width
-  local text = sanitize_text(pinned_node.text) or ""
+  local text = sanitize_text(pinned_node.title) or ""
   local max_width = 38
   for i = 1, #text, max_width do
     local line = text:sub(i, i + max_width - 1)
@@ -610,7 +610,7 @@ function M.pin_node()
       local label = string.format(
         "%s %s (%s:%s)",
         config.icons[n.type],
-        n.text,
+        n.title,
         vim.fn.fnamemodify(n.file, ":t"),
         format_line_range(n.start_line, n.end_line)
       )
@@ -632,7 +632,7 @@ function M.pin_node()
     pinned_node = node_map[choice]
     create_pin_window()
     update_pin_content()
-    print("Pinned: " .. pinned_node.text)
+    print("Pinned: " .. pinned_node.title)
   end)
 end
 
@@ -674,7 +674,8 @@ function M.create_node(type, opts)
       local node = {
         id = tostring(os.time()) .. math.random(100, 999),
         type = type,
-        text = value,
+        title = value,
+        description = "",
         file = ctx.file,
         start_line = ctx.start_line,
         end_line = ctx.end_line,
@@ -710,7 +711,7 @@ function M.add_code_snippet(opts)
     local label = string.format(
       "%s %s (%s:%s)",
       config.icons[n.type] or "🔹",
-      n.text or "untitled",
+      n.title or "untitled",
       vim.fn.fnamemodify(n.file or "", ":t"),
       format_line_range(n.start_line, n.end_line)
     )
@@ -755,7 +756,7 @@ function M.delete_code_snippet()
     local label = string.format(
       "%s %s (%s:%s)",
       config.icons[n.type] or "🔹",
-      n.text or "untitled",
+      n.title or "untitled",
       vim.fn.fnamemodify(n.file or "", ":t"),
       format_line_range(n.start_line, n.end_line)
     )
@@ -856,7 +857,7 @@ function M.link_node(source_node, on_complete)
       local label = string.format(
         "%s %s (%s:%d)",
         config.icons[n.type],
-        n.text,
+        n.title,
         vim.fn.fnamemodify(n.file, ":t"),
         format_line_range(n.start_line, n.end_line)
       )
@@ -884,7 +885,7 @@ function M.link_node(source_node, on_complete)
           )
         end
         db.add_edge(source_node.id, target.id, rel)
-        print(string.format("Linked: %s --[%s]--> %s", source_node.text, rel, target.text))
+        print(string.format("Linked: %s --[%s]--> %s", source_node.title, rel, target.title))
         if dashboard then
           M.refresh_dashboard()
         end
@@ -1214,8 +1215,8 @@ function M.refresh_dashboard_details()
   add_line("")
   add_line("Keys: <CR> open | m modify | t tabs | <Tab>/<S-Tab> focus | q close")
   add_line("")
-  add_line("Text:")
-  local wrapped = wrap_text(data.text or "", width)
+  add_line("Title:")
+  local wrapped = wrap_text(data.title or "", width)
   if #wrapped == 0 then
     table.insert(lines, "  (empty)")
   else
@@ -1395,7 +1396,7 @@ function M.refresh_dashboard_list()
       table.insert(
         list_nodes,
         NuiTree.Node({
-          text = string.format("%s %s", config.icons[node.type] or "🔹", sanitize_text(node.text)),
+          text = string.format("%s %s", config.icons[node.type] or "🔹", sanitize_text(node.title)),
           data = node,
         })
       )
@@ -1460,7 +1461,7 @@ function M.delete_node()
     local label = string.format(
       "%s %s (%s:%d)",
       config.icons[n.type],
-      n.text,
+      n.title,
       vim.fn.fnamemodify(n.file, ":t"),
       format_line_range(n.start_line, n.end_line)
     )
@@ -1475,7 +1476,7 @@ function M.delete_node()
     local node_to_delete = node_map[choice]
     if node_to_delete then
       db.delete_node(node_to_delete.id)
-      print("Node deleted: " .. node_to_delete.text)
+      print("Node deleted: " .. node_to_delete.title)
       if dashboard then
         M.refresh_dashboard()
       end
@@ -1544,7 +1545,7 @@ function M.modify_node()
     local label = string.format(
       "%s %s (%s:%d)",
       config.icons[n.type],
-      n.text,
+      n.title,
       vim.fn.fnamemodify(n.file, ":t"),
       format_line_range(n.start_line, n.end_line)
     )

@@ -157,7 +157,7 @@ func (g *Generator) Generate() (string, error) {
 		return "", fmt.Errorf("no subject")
 	}
 
-	if err := os.MkdirAll(g.ReportsDir, 0755); err != nil {
+	if err := os.MkdirAll(g.ReportsDir, 0o755); err != nil {
 		return "", err
 	}
 
@@ -204,7 +204,7 @@ func (g *Generator) Generate() (string, error) {
 	g.addGroupHeading(&lines, "Risks", []string{models.NodeTypeRisk}, "R")
 
 	content := strings.Join(lines, "\n")
-	if err := os.WriteFile(reportPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(reportPath, []byte(content), 0o644); err != nil {
 		return "", err
 	}
 
@@ -301,6 +301,7 @@ func (g *Generator) addGroupHeading(lines *[]string, title string, types []strin
 		}
 
 		var fields []string
+		fields = append(fields, fmt.Sprintf("\n> "))
 		if n.RepoName != "" {
 			fields = append(fields, fmt.Sprintf("Repo: %s", n.RepoName))
 		}
@@ -352,7 +353,8 @@ func sanitizeText(text string) string {
 	if text == "" {
 		return ""
 	}
-	return strings.ReplaceAll(strings.ReplaceAll(text, "\r", " "), "\n", " ")
+	return text
+	// return strings.ReplaceAll(strings.ReplaceAll(text, "\r", " "), "\n", " ")
 }
 
 func safeFilename(value string) string {

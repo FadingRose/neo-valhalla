@@ -1,4 +1,5 @@
 local Path = require("plenary.path")
+local cli = require("custom_plugins.auditscope.mind.cli_bridge")
 local M = {}
 
 M.data = { subject = nil, nodes = {}, edges = {}, glance = {} }
@@ -6,8 +7,9 @@ M.file_path = nil
 M.subject_index = { subjects = {} }
 M.active_subject_id = nil
 M.locked_commits = {}
+M.use_cli_for_writes = true
 
-local STORAGE_ROOT = vim.fs.joinpath(vim.fn.stdpath("data"), "auditscope")
+local STORAGE_ROOT = vim.fs.joinpath(vim.fn.expand("~"), ".local", "share", "auditscope")
 local SUBJECTS_DIR = vim.fs.joinpath(STORAGE_ROOT, "subjects")
 local REPORTS_DIR = vim.fs.joinpath(STORAGE_ROOT, "reports")
 local STATE_FILE = vim.fs.joinpath(STORAGE_ROOT, "state.json")
@@ -44,6 +46,17 @@ end
 
 local function save_json(path, data)
   path:write(vim.json.encode(data), "w")
+end
+
+local function generate_id()
+  local base36chars = "0123456789abcdefghijklmnopqrstuvwxyz"
+  local now = vim.loop.hrtime()
+  math.randomseed(now)
+  local id = ""
+  for i = 1, 8 do
+    id = id .. string.sub(base36chars, math.random(1, 36), math.random(1, 36))
+  end
+  return id
 end
 
 function M.init()
@@ -329,19 +342,18 @@ function M.delete_subject(subject_id)
   end
 
   local title = target and target.title or subject_id
-  vim.ui.input({
-    prompt = string.format("Type DELETE to remove subject '%s': ", title),
-  }, function(confirm)
-    if confirm ~= "DELETE" then
+  
+  cli.delete_subject_interactive(subject_id, function(result, err)
+    if err then
+      vim.notify("AuditScope: Failed to delete subject: " .. err, vim.log.levels.ERROR)
       return
     end
-    if M.delete_subject_confirmed(subject_id) then
-      vim.notify("AuditScope: Subject deleted.", vim.log.levels.INFO)
-    end
+    M.delete_subject_confirmed(subject_id)
+    vim.notify("AuditScope: Subject deleted.", vim.log.levels.INFO)
   end)
 end
 
-function M.set_active_subject(subject_id)
+local function set_active_subject_local(subject_id)
   if not subject_id then
     return nil
   end
@@ -364,25 +376,64 @@ function M.set_active_subject(subject_id)
   return M.data.subject
 end
 
+function M.set_active_subject(subject_id, skip_cli)
+  if not subject_id then
+    return nil
+  end
+  
+  if M.use_cli_for_writes and not skip_cli then
+    cli.select_subject_interactive(subject_id, function(result, err)
+      if err then
+        vim.notify("AuditScope: Failed to select subject: " .. err, vim.log.levels.ERROR)
+        return
+      end
+      set_active_subject_local(subject_id)
+      vim.notify(string.format("AuditScope: Active subject set to %s", subject_id), vim.log.levels.INFO)
+    end)
+    return nil
+  end
+  
+  return set_active_subject_local(subject_id)
+end
+
 function M.create_subject(title, opts)
   opts = opts or {}
-  M.load_index()
+  
+  local result, err = cli.create_subject_interactive(title, function(result, err)
+    if err then
+      vim.notify("AuditScope: Failed to create subject: " .. err, vim.log.levels.ERROR)
+      return
+    end
+    
+    if result and result.subject_id then
+      M.load_index()
+      set_active_subject_local(result.subject_id)
+      vim.notify(string.format("AuditScope: Subject created: %s", title), vim.log.levels.INFO)
+    end
+  end)
+  
+  return nil
+end
 
-  local id = opts.id or (tostring(os.time()) .. tostring(math.random(100, 999)))
-  local meta = new_subject_meta(title or "Untitled Subject", { id = id, status = opts.status, scope = opts.scope })
-
-  local file = subject_path(id)
-  M.file_path = file
-  M.data = { subject = meta, nodes = {}, edges = {}, glance = {} }
-  save_json(file, M.data)
-
-  table.insert(M.subject_index.subjects, meta)
-  M.save_index()
-
-  M.active_subject_id = id
-  M.save_state()
-
-  return meta
+function M.CreateMind(opts)
+  opts = opts or {}
+  local ctx = M.get_repo_context()
+  local title = opts.title or opts.project_name or ctx.name or ("Subject " .. os.date("%Y-%m-%d %H:%M"))
+  
+  cli.create_subject_interactive(title, function(result, err)
+    if err then
+      vim.notify("AuditScope: Failed to create subject: " .. err, vim.log.levels.ERROR)
+      return
+    end
+    
+    if result and result.subject_id then
+      M.load_index()
+      set_active_subject_local(result.subject_id)
+      vim.notify(string.format("AuditScope: Subject created: %s", title), vim.log.levels.INFO)
+    end
+  end)
+  
+  return nil
 end
 
 function M.update_subject_meta(meta)
@@ -429,7 +480,6 @@ function M.select_subject()
   }, function(choice)
     if choice then
       M.set_active_subject(choice.id)
-      vim.notify(string.format("AuditScope: Active subject set to %s", choice.title or choice.id), vim.log.levels.INFO)
     end
   end)
 end
@@ -476,8 +526,14 @@ function M.set_commit(commit_hash)
     return nil
   end
 
-  M.locked_commits[root] = commit_hash
-  vim.notify(string.format("AuditScope: Commit locked to %s", commit_hash), vim.log.levels.INFO)
+  cli.lock_commit_interactive(commit_hash, function(result, err)
+    if err then
+      vim.notify("AuditScope: Failed to lock commit: " .. err, vim.log.levels.ERROR)
+      return
+    end
+    M.locked_commits[root] = commit_hash
+    vim.notify(string.format("AuditScope: Commit locked to %s", commit_hash), vim.log.levels.INFO)
+  end)
 
   return commit_hash
 end
@@ -485,8 +541,15 @@ end
 function M.unlock_commit()
   local ctx = M.get_repo_context()
   local root = ctx.root or "nogit"
-  M.locked_commits[root] = nil
-  vim.notify("AuditScope: Commit lock released", vim.log.levels.INFO)
+  
+  local result, err = cli.unlock_commit()
+  if err then
+    M.locked_commits[root] = nil
+    vim.notify("AuditScope: Commit lock released", vim.log.levels.INFO)
+  else
+    M.locked_commits[root] = nil
+    vim.notify("AuditScope: Commit lock released", vim.log.levels.INFO)
+  end
 end
 
 function M.get_effective_commit()
@@ -498,18 +561,24 @@ end
 function M.TryLoadMind()
   M.load_state()
   if M.active_subject_id then
-    return M.set_active_subject(M.active_subject_id)
+    return set_active_subject_local(M.active_subject_id)
   end
   return nil
 end
 
-function M.CreateMind(opts)
-  opts = opts or {}
-  local ctx = M.get_repo_context()
-  local title = opts.title or opts.project_name or ctx.name or ("Subject " .. os.date("%Y-%m-%d %H:%M"))
-  local meta = M.create_subject(title, { status = opts.status, scope = opts.scope })
-  vim.notify(string.format("AuditScope: Subject created: %s", meta.title), vim.log.levels.INFO)
-  return meta
+local function migrate_node(node)
+  if node.text and not node.title then
+    node.title = node.text
+    node.description = ""
+    node.text = nil
+  end
+  if not node.title then
+    node.title = ""
+  end
+  if not node.description then
+    node.description = ""
+  end
+  return node
 end
 
 function M.load()
@@ -531,8 +600,15 @@ function M.load()
 
   local migrated = false
   for _, node in ipairs(M.data.nodes) do
+    local old_text = node.text
+    migrate_node(node)
+    if old_text and not node.text then
+      migrated = true
+    end
+    
     if type(node.codesnippets) ~= "table" then
       node.codesnippets = {}
+      migrated = true
     end
     if #node.codesnippets == 0 and node.code_snippet and node.code_snippet ~= "" then
       table.insert(node.codesnippets, {
@@ -568,6 +644,18 @@ function M.set_summary(summary)
   if not ensure_initialized() then
     return nil
   end
+  
+  if M.use_cli_for_writes then
+    local result, err = cli.set_summary(summary or "")
+    if err then
+      M.data.subject.summary = summary or ""
+      M.save()
+      return M.data.subject.summary
+    end
+    M.load()
+    return M.data.subject.summary
+  end
+  
   M.data.subject.summary = summary or ""
   M.save()
   return M.data.subject.summary
@@ -592,12 +680,24 @@ function M.save()
   end
 end
 
--- === 数据操作 API ===
-
 function M.add_node(node)
   if not ensure_initialized() then
     return nil
   end
+  
+  migrate_node(node)
+  
+  if M.use_cli_for_writes then
+    local result, err = cli.create_node(node)
+    if err then
+      table.insert(M.data.nodes, node)
+      M.save()
+      return node
+    end
+    M.load()
+    return node
+  end
+  
   table.insert(M.data.nodes, node)
   M.save()
   return node
@@ -607,6 +707,18 @@ function M.add_edge(from_id, to_id, relation)
   if not ensure_initialized() then
     return nil
   end
+  
+  if M.use_cli_for_writes then
+    local result, err = cli.create_edge(from_id, to_id, relation)
+    if err then
+      table.insert(M.data.edges, { from = from_id, to = to_id, relation = relation })
+      M.save()
+      return { from = from_id, to = to_id, relation = relation }
+    end
+    M.load()
+    return { from = from_id, to = to_id, relation = relation }
+  end
+  
   table.insert(M.data.edges, { from = from_id, to = to_id, relation = relation })
   M.save()
   return { from = from_id, to = to_id, relation = relation }
@@ -615,6 +727,30 @@ end
 function M.delete_edge(from_id, to_id)
   if not ensure_initialized() then
     return false
+  end
+  
+  if M.use_cli_for_writes then
+    local result, err = cli.delete_edge(from_id, to_id)
+    if err then
+      local new_edges = {}
+      local changed = false
+
+      for _, edge in ipairs(M.data.edges) do
+        if edge.from == from_id and edge.to == to_id then
+          changed = true
+        else
+          table.insert(new_edges, edge)
+        end
+      end
+
+      if changed then
+        M.data.edges = new_edges
+        M.save()
+      end
+      return changed
+    end
+    M.load()
+    return true
   end
 
   local new_edges = {}
@@ -659,6 +795,32 @@ function M.update_node(updated_node)
   if not ensure_initialized() then
     return nil
   end
+  
+  migrate_node(updated_node)
+  
+  if M.use_cli_for_writes then
+    local updates = {
+      title = updated_node.title,
+      description = updated_node.description,
+      file = updated_node.file,
+      start_line = updated_node.start_line,
+      end_line = updated_node.end_line,
+    }
+    local result, err = cli.update_node(updated_node.id, updates)
+    if err then
+      for i, node in ipairs(M.data.nodes) do
+        if node.id == updated_node.id then
+          M.data.nodes[i] = updated_node
+          M.save()
+          return updated_node
+        end
+      end
+      return nil
+    end
+    M.load()
+    return updated_node
+  end
+  
   for i, node in ipairs(M.data.nodes) do
     if node.id == updated_node.id then
       M.data.nodes[i] = updated_node
@@ -666,7 +828,7 @@ function M.update_node(updated_node)
       return updated_node
     end
   end
-  return nil -- Node not found
+  return nil
 end
 
 function M.delete_node(node_id)
@@ -674,10 +836,41 @@ function M.delete_node(node_id)
     return false
   end
 
+  if M.use_cli_for_writes then
+    local result, err = cli.delete_node(node_id)
+    if err then
+      local original_node_count = #M.data.nodes
+      local original_edge_count = #M.data.edges
+
+      local new_nodes = {}
+      for _, node in ipairs(M.data.nodes) do
+        if node.id ~= node_id then
+          table.insert(new_nodes, node)
+        end
+      end
+      M.data.nodes = new_nodes
+
+      local new_edges = {}
+      for _, edge in ipairs(M.data.edges) do
+        if edge.from ~= node_id and edge.to ~= node_id then
+          table.insert(new_edges, edge)
+        end
+      end
+      M.data.edges = new_edges
+
+      if #M.data.nodes < original_node_count or #M.data.edges < original_edge_count then
+        M.save()
+        return true
+      end
+      return false
+    end
+    M.load()
+    return true
+  end
+
   local original_node_count = #M.data.nodes
   local original_edge_count = #M.data.edges
 
-  -- Remove the node
   local new_nodes = {}
   for _, node in ipairs(M.data.nodes) do
     if node.id ~= node_id then
@@ -686,7 +879,6 @@ function M.delete_node(node_id)
   end
   M.data.nodes = new_nodes
 
-  -- Remove associated edges
   local new_edges = {}
   for _, edge in ipairs(M.data.edges) do
     if edge.from ~= node_id and edge.to ~= node_id then
@@ -699,7 +891,7 @@ function M.delete_node(node_id)
     M.save()
     return true
   end
-  return false -- Node not found or no changes made
+  return false
 end
 
 function M.update_glance(file, line, count, skip_save)
@@ -713,7 +905,6 @@ function M.update_glance(file, line, count, skip_save)
     M.data.glance[file] = {}
   end
 
-  -- Save line as string key for consistent JSON object behavior
   local line_key = tostring(line)
 
   if count > 0 then
@@ -742,6 +933,90 @@ function M.clean_glance(file)
     M.data.glance[file] = {}
     M.save()
   end
+end
+
+function M.add_snippet(node_id, snippet)
+  if not ensure_initialized() then
+    return nil
+  end
+  
+  if M.use_cli_for_writes then
+    local result, err = cli.add_snippet(node_id, snippet)
+    if err then
+      local node = nil
+      for _, n in ipairs(M.data.nodes) do
+        if n.id == node_id then
+          node = n
+          break
+        end
+      end
+      if node then
+        node.codesnippets = node.codesnippets or {}
+        table.insert(node.codesnippets, snippet)
+        M.save()
+        return snippet
+      end
+      return nil
+    end
+    M.load()
+    return snippet
+  end
+  
+  local node = nil
+  for _, n in ipairs(M.data.nodes) do
+    if n.id == node_id then
+      node = n
+      break
+    end
+  end
+  if node then
+    node.codesnippets = node.codesnippets or {}
+    table.insert(node.codesnippets, snippet)
+    M.save()
+    return snippet
+  end
+  return nil
+end
+
+function M.delete_snippet(node_id, index)
+  if not ensure_initialized() then
+    return false
+  end
+  
+  if M.use_cli_for_writes then
+    local result, err = cli.delete_snippet(node_id, index)
+    if err then
+      local node = nil
+      for _, n in ipairs(M.data.nodes) do
+        if n.id == node_id then
+          node = n
+          break
+        end
+      end
+      if node and node.codesnippets and index >= 1 and index <= #node.codesnippets then
+        table.remove(node.codesnippets, index)
+        M.save()
+        return true
+      end
+      return false
+    end
+    M.load()
+    return true
+  end
+  
+  local node = nil
+  for _, n in ipairs(M.data.nodes) do
+    if n.id == node_id then
+      node = n
+      break
+    end
+  end
+  if node and node.codesnippets and index >= 1 and index <= #node.codesnippets then
+    table.remove(node.codesnippets, index)
+    M.save()
+    return true
+  end
+  return false
 end
 
 return M
