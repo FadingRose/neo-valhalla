@@ -42,20 +42,8 @@ vim.cmd([[
   nnoremap <silent> b :call CustomB()<CR>
 ]])
 
-require("custom_plugins.auditscope.mind").setup({
-  -- optional overrides
-  icons = {
-    hypothesis = "❓",
-    insight = "💡",
-    fact = "📌",
-    question = "🧐",
-    finding = "🧭",
-    decision = "🧷",
-    evidence = "🔍",
-    risk = "⚠️",
-    note = "🗒️",
-  },
-  auto_trace = false,
+require("custom_plugins.auditscope.glance").setup({
+  auto_track = true,
   show_glance = false,
 })
 

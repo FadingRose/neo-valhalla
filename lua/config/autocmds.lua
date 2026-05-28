@@ -80,5 +80,16 @@ vim.g.vimtex_complete_enabled = 1 -- enable autocomplete for .bib ref
 -- require("snacks").setup({
 --   words = { enabled = false },
 -- })
+
+local ok_snacks, snacks_diag = pcall(require, "snacks.explorer.diagnostics")
+if ok_snacks and snacks_diag.update then
+  local original_update = snacks_diag.update
+  snacks_diag.update = function(cwd)
+    local ok, result = pcall(original_update, cwd)
+    if ok then
+      return result
+    end
+  end
+end
 --
 require("config.colorscheme")

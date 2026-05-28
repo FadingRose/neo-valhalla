@@ -64,10 +64,6 @@ vim.keymap.set("n", "gm", "<cmd>Lspsaga finder imp<CR>", { desc = "Expand Implem
 -- Split window horizontally and open terminal
 vim.keymap.set("n", "<C-w>t", "<cmd>vsplit | terminal<cr>", { desc = "Split window horizontally and open terminal" })
 
-vim.keymap.set({ "n", "v" }, "<C-a>", "<cmd>CodeCompanionActions<cr>", { noremap = true, silent = true })
-vim.keymap.set({ "n", "v" }, "<Leader>a", "<cmd>CodeCompanionChat Toggle<cr>", { noremap = true, silent = true })
-vim.keymap.set("v", "ga", "<cmd>CodeCompanionChat Add<cr>", { noremap = true, silent = true })
-
 vim.keymap.set("v", "<leader>cx", function()
   vim.cmd("'<,'>yank +")
   vim.fn.system("codesnap --from-clipboard -o clipboard")
@@ -75,9 +71,6 @@ end, { desc = "Yank and codesnap" })
 
 -- Mapping '<Leader>cc' to toggle BaleiaColorize
 vim.keymap.set("n", "<Leader>cc", "<cmd>BaleiaColorize<CR>", { desc = "Toggle BaleiaColorize" })
-
--- Expand 'cc' into 'CodeCompanion' in the command line
-vim.cmd([[cab cc CodeCompanion]])
 
 -- Mapping Tab to jump to the matching bracket
 vim.api.nvim_set_keymap("n", "<Tab>", "%", { noremap = true, silent = true })
@@ -234,44 +227,20 @@ vim.keymap.set("x", "<leader>cr", clear_markdown_formatting, {
 
 -- vim.keymap.del({ "n", "v" }, "<leader>n")
 
-local audit_mind = require("custom_plugins.auditscope.mind")
+local annotation = require("custom_plugins.annotation")
+annotation.setup()
 
-vim.keymap.set("n", "<leader>oM", function()
-  audit_mind.open_dashboard()
-end, { desc = "Audit: Mind Map" })
+local glance = require("custom_plugins.auditscope.glance")
 
-vim.keymap.set("n", "<leader>om", function()
-  audit_mind.modify_node()
-end, { desc = "Audit: Modify Node" })
-
-vim.keymap.set("n", "<leader>od", function()
-  audit_mind.delete_node()
-end, { desc = "Audit: Delete Node" })
-
-vim.keymap.set("n", "<leader>ol", function()
-  audit_mind.select_commit()
-end, { desc = "Audit: Select Commit" })
-
-vim.keymap.set("n", "<leader>oC", "<cmd>AuditSubjectNew<CR>", { desc = "Audit: New Subject" })
-vim.keymap.set("n", "<leader>os", "<cmd>AuditSubjectSelect<CR>", { desc = "Audit: Select Subject" })
-vim.keymap.set("n", "<leader>oS", "<cmd>AuditSummary<CR>", { desc = "Audit: Summary" })
-vim.keymap.set("n", "<leader>oR", "<cmd>AuditGenerateReport<CR>", { desc = "Audit: Generate Report" })
-vim.keymap.set({ "n", "v" }, "<leader>on", "<cmd>AuditNote low<CR>", { desc = "Audit: Note (Low)" })
-vim.keymap.set({ "n", "v" }, "<leader>oN", "<cmd>AuditNote high<CR>", { desc = "Audit: Note (High)" })
-vim.keymap.set("n", "<leader>oa", function()
-  audit_mind.add_code_snippet()
-end, { desc = "Audit: Add Snippet" })
-vim.keymap.set("v", "<leader>oa", function()
-  audit_mind.add_code_snippet({ use_visual = true })
-end, { desc = "Audit: Add Snippet" })
-
-vim.keymap.set("n", "=", function()
-  audit_mind.increment_glance()
-end, { desc = "Audit: Increment Glance (+)" })
-
-vim.keymap.set("n", "-", function()
-  audit_mind.decrement_glance()
-end, { desc = "Audit: Decrement Glance (-)" })
+vim.keymap.set("n", "<leader>ot", glance.toggle_tracking, { desc = "Audit: Toggle Glance Tracking" })
+vim.keymap.set("n", "<leader>ob", glance.toggle_bars, { desc = "Audit: Toggle Glance Bars" })
+vim.keymap.set("n", "<leader>of", function()
+  glance.flush()
+  glance.show_bars()
+end, { desc = "Audit: Flush & Show Glance" })
+vim.keymap.set("n", "<leader>os", glance.summary, { desc = "Audit: Repo Glance Summary" })
+vim.keymap.set("n", "<leader>oc", "<cmd>AuditGlanceClear<CR>", { desc = "Audit: Clear Glance (file)" })
+vim.keymap.set("n", "<leader>od", glance.debug, { desc = "Audit: Debug Panel" })
 
 local function render_markdown_to_html()
   local buf = vim.api.nvim_get_current_buf()
@@ -359,3 +328,33 @@ vim.keymap.set({ "n", "v" }, "gs", function()
     gs.stage_hunk({ lnum, lnum })
   end
 end, { desc = "Git stage current line or selection" })
+
+vim.g.gui_font_size = vim.g.gui_font_default_size
+
+RefreshGuiFont = function()
+  vim.opt.guifont = string.format("%s:h%s", vim.g.gui_font_face, vim.g.gui_font_size)
+end
+
+ResizeGuiFont = function(delta)
+  vim.g.gui_font_size = vim.g.gui_font_size + delta
+  RefreshGuiFont()
+end
+
+ResetGuiFont = function()
+  vim.g.gui_font_size = vim.g.gui_font_default_size
+  RefreshGuiFont()
+end
+
+-- Call function on startup to set default value
+ResetGuiFont()
+
+-- Keymaps
+
+local opts = { noremap = true, silent = true }
+
+vim.keymap.set({ "n", "i" }, "<C-+>", function()
+  ResizeGuiFont(1)
+end, opts)
+vim.keymap.set({ "n", "i" }, "<C-->", function()
+  ResizeGuiFont(-1)
+end, opts)
